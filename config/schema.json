@@ -1,0 +1,26 @@
+{
+  "title": "Logind Idle Control Configuration",
+  "description": "Configure idle inhibitor behavior",
+  "type": "object",
+  "properties": {
+    "state_on_start": {
+      "type": "boolean",
+      "title": "Enable on Startup",
+      "description": "Enable idle inhibitor when daemon starts",
+      "default": false
+    },
+    "disable_on_lock": {
+      "type": "boolean",
+      "title": "Disable on Screen Lock",
+      "description": "Automatically disable idle inhibitor when screen is locked (listens to logind Lock signal)",
+      "default": true
+    },
+    "log_level": {
+      "type": "string",
+      "title": "Log Level",
+      "description": "Logging verbosity level",
+      "enum": ["error", "warn", "info", "debug", "trace"],
+      "default": "info"
+    }
+  }
+}
