@@ -5,8 +5,7 @@ A lightweight Rust daemon for managing systemd-logind idle inhibitor locks with 
 ## Documentation
 
 📚 **[Wiki](https://github.com/MasonRhodesDev/logind-idle-control/wiki)** - Comprehensive guides and integration examples:
-- [Waybar Integration](https://github.com/MasonRhodesDev/logind-idle-control/wiki/Waybar-Integration)
-- [AGS Integration](https://github.com/MasonRhodesDev/logind-idle-control/wiki/AGS-Integration)
+- [UI Integration](https://github.com/MasonRhodesDev/logind-idle-control/wiki/UI-Integration)
 - [Custom D-Bus Consumers](https://github.com/MasonRhodesDev/logind-idle-control/wiki/Custom-D-Bus-Consumers)
 - [Multi-Session Setup](https://github.com/MasonRhodesDev/logind-idle-control/wiki/Multi-Session-Setup)
 - [Troubleshooting](https://github.com/MasonRhodesDev/logind-idle-control/wiki/Troubleshooting)
@@ -21,7 +20,7 @@ A lightweight Rust daemon for managing systemd-logind idle inhibitor locks with 
 - 📡 Event-driven D-Bus interface - consumers listen to signals directly
 - 💾 Session-specific persistent state
 - 🔒 Auto-disable on screen lock (configurable, listens to logind Lock signal)
-- 🎨 Pure D-Bus interface - waybar/consumers listen directly, no wrapper scripts
+- 🎨 Pure D-Bus interface - UI consumers listen directly, no wrapper scripts
 
 ## Session Isolation
 
@@ -62,19 +61,57 @@ Sessions don't interfere with each other.
 
 ## Installation
 
+### Method 1: Makefile (Recommended)
+
+```bash
+cd ~/repos/logind-idle-control
+
+# Build and install to ~/.local/bin
+make install
+```
+
+**Upgrading:**
+```bash
+make install  # Intelligently handles updates and service restart
+```
+
+**Uninstalling:**
+```bash
+make uninstall
+```
+
+### Method 2: RPM Package (System-wide)
+
+```bash
+cd ~/repos/logind-idle-control
+
+# Build RPM
+make rpm
+
+# Install
+sudo dnf install rpmbuild/RPMS/x86_64/logind-idle-control-*.rpm
+```
+
+**Upgrading:**
+```bash
+make rpm
+sudo dnf upgrade rpmbuild/RPMS/x86_64/logind-idle-control-*.rpm
+```
+
+**Uninstalling:**
+```bash
+sudo dnf remove logind-idle-control
+```
+
+### Method 3: Manual Installation
+
 ```bash
 cd ~/repos/logind-idle-control
 cargo build --release
 
-# Install binaries
-sudo cp target/release/logind-idle-ctl /usr/local/bin/
-sudo cp target/release/logind-idle-daemon /usr/local/bin/
-
-# Install systemd service (per graphical session)
-mkdir -p ~/.config/systemd/user
+mkdir -p ~/.local/bin ~/.config/systemd/user
+cp target/release/logind-idle-control ~/.local/bin/
 cp systemd/logind-idle-control.service ~/.config/systemd/user/
-
-# Enable and start
 systemctl --user daemon-reload
 systemctl --user enable --now logind-idle-control.service
 ```
@@ -84,11 +121,12 @@ systemctl --user enable --now logind-idle-control.service
 The CLI automatically detects which graphical session you're in:
 
 ```bash
-logind-idle-ctl enable   # Enable idle inhibitor
-logind-idle-ctl disable  # Disable idle inhibitor
-logind-idle-ctl toggle   # Toggle state
-logind-idle-ctl status   # Check current status
-logind-idle-ctl config   # Config editor (coming soon)
+logind-idle-control enable   # Enable idle inhibitor
+logind-idle-control disable  # Disable idle inhibitor
+logind-idle-control toggle   # Toggle state
+logind-idle-control status   # Check current status
+logind-idle-control monitor  # Monitor state changes via D-Bus
+logind-idle-control daemon   # Run daemon (typically started by systemd)
 ```
 
 ## Configuration
@@ -101,13 +139,13 @@ disable_on_lock = true    # Auto-disable when screen locked
 log_level = "info"        # Logging verbosity
 ```
 
-## Waybar Integration
+## UI Integration
 
-Waybar listens to D-Bus signals directly - implement this in your waybar configuration or custom module.
+UI applications can monitor idle inhibitor state via D-Bus signals directly.
 
 ### D-Bus Integration Pattern
 
-Your waybar module should:
+Your UI module should:
 1. Detect current session ID via `loginctl`
 2. Connect to session-specific D-Bus path
 3. Listen for `StateChanged` signals
@@ -127,23 +165,21 @@ display_icon(read(state_file))
 dbus_monitor("com.logind.IdleControl", object_path, "StateChanged", callback)
 ```
 
-### Minimal Shell Example
+### Minimal Shell Script Example
 
 ```bash
 #!/bin/bash
-# Quick waybar module example
-
 SESSION=$(loginctl session-status | head -1 | awk '{print $1}')
 STATE_FILE="$XDG_RUNTIME_DIR/logind-idle-control-session-${SESSION}.state"
 
 if [[ -f "$STATE_FILE" ]] && [[ "$(cat $STATE_FILE)" == "1" ]]; then
-    echo '{"text": "󰅶", "class": "active"}'
+    echo "enabled"
 else
-    echo '{"text": "󰾪", "class": "inactive"}'
+    echo "disabled"
 fi
 ```
 
-For real-time updates, listen to D-Bus `StateChanged` signals or poll the state file.
+For real-time updates, use the `monitor` command or listen to D-Bus `StateChanged` signals directly.
 
 ## State Files (Per-Session)
 
@@ -158,7 +194,7 @@ $XDG_RUNTIME_DIR/logind-idle-control-session-3.state  # Session 3
 
 ```bash
 #!/bin/bash
-logind-idle-ctl disable
+logind-idle-control disable
 hyprlock
 ```
 
@@ -167,7 +203,7 @@ The daemon auto-disables on lock if `disable_on_lock = true`.
 ### Hyprland Keybind
 
 ```
-bind = $mainMod, I, exec, logind-idle-ctl toggle
+bind = $mainMod, I, exec, logind-idle-control toggle
 ```
 
 ### Multi-Session Example
@@ -176,14 +212,14 @@ bind = $mainMod, I, exec, logind-idle-ctl toggle
 # TTY1
 $ loginctl session-status
 2 - user (1000)
-$ logind-idle-ctl enable
+$ logind-idle-control enable
 Idle inhibitor enabled
 
 # TTY2 (same user, different session)
 $ loginctl session-status
 3 - user (1000)
-$ logind-idle-ctl status
-disabled  # Independent!
+$ logind-idle-control status
+0  # Independent!
 ```
 
 ## Verification
@@ -211,7 +247,7 @@ cat $XDG_RUNTIME_DIR/logind-idle-control-session-${SESSION}.state
 ```
 TTY1 (Session 2):
   systemd graphical-session.target
-  → Starts logind-idle-daemon instance 1
+  → Starts logind-idle-control daemon instance 1
   → Detects session 2 via GetSessionByPID()
   → Creates D-Bus path: /com/logind/IdleControl/session_2
   → State file: .../session-2.state
@@ -219,7 +255,7 @@ TTY1 (Session 2):
 
 TTY2 (Session 3):
   systemd graphical-session.target
-  → Starts logind-idle-daemon instance 2
+  → Starts logind-idle-control daemon instance 2
   → Detects session 3 via GetSessionByPID()
   → Creates D-Bus path: /com/logind/IdleControl/session_3
   → State file: .../session-3.state

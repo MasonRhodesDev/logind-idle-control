@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Mason Rhodes <mason@masonrhodes.dev>"]
 license = "MIT"
-description = "Systemd-logind idle inhibitor control with Waybar integration"
+description = "Systemd-logind idle inhibitor control with D-Bus interface"
 
 [dependencies]
 zbus = "4"

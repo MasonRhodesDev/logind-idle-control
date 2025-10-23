@@ -1,12 +1,12 @@
 [Unit]
 Description=Logind Idle Control Daemon
-Documentation=https://github.com/yourusername/logind-idle-control
+Documentation=https://github.com/MasonRhodesDev/logind-idle-control
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/logind-idle-daemon
+ExecStart=%h/.local/bin/logind-idle-control daemon
 Restart=on-failure
 RestartSec=5
 

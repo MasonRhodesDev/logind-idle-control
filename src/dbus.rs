@@ -105,17 +105,263 @@ pub async fn emit_state_changed(session: &SessionInfo, enabled: bool) -> Result<
     Ok(())
 }
 
+pub async fn listen_unlock_signals<F>(session: &SessionInfo, mut callback: F) -> Result<()>
+where
+    F: FnMut() + Send + 'static,
+{
+    use futures_util::StreamExt;
+    use zbus::MatchRule;
+    
+    let connection = Connection::system()
+        .await
+        .context("Failed to connect to system D-Bus")?;
+    
+    let session_path = session.path.to_string();
+    
+    let match_rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .path(session_path.clone())?
+        .interface("org.freedesktop.login1.Session")?
+        .member("Unlock")?
+        .build();
+    
+    let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
+    proxy.add_match_rule(match_rule.into()).await?;
+    
+    let mut stream = zbus::MessageStream::from(&connection);
+    
+    tracing::info!("Listening for Unlock signals on {} (session {})", session_path, session.id);
+    
+    while let Some(msg) = stream.next().await {
+        if let Ok(msg) = msg {
+            if let Some(path) = msg.path() {
+                if path.as_str() == session_path {
+                    if let Some(member) = msg.member() {
+                        if member.as_str() == "Unlock" {
+                            tracing::info!("Unlock signal detected for session {}", session.id);
+                            callback();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+
+pub async fn monitor_state_changes() -> Result<()> {
+    use std::io::Write;
+    
+    let session = crate::session::get_current_session().await?;
+    
+    let state = crate::State::load()?;
+    println!("{}", state);
+    std::io::stdout().flush()?;
+    
+    let (tx_state, mut rx_state) = tokio::sync::mpsc::channel::<bool>(10);
+    let (tx_event, mut rx_event) = tokio::sync::mpsc::channel::<()>(10);
+    
+    let session_state = session.clone();
+    let object_path = get_object_path_for_session(&session);
+    tokio::spawn(async move {
+        if let Err(e) = monitor_state_changed_signals(&session_state, &object_path, tx_state).await {
+            tracing::warn!("StateChanged monitor exited: {}", e);
+        }
+    });
+    
+    let tx_lock = tx_event.clone();
+    let session_lock = session.clone();
+    tokio::spawn(async move {
+        if let Err(e) = monitor_lock_signal(&session_lock, tx_lock).await {
+            tracing::warn!("Lock monitor exited: {}", e);
+        }
+    });
+    
+    let tx_unlock = tx_event.clone();
+    let session_unlock = session.clone();
+    tokio::spawn(async move {
+        if let Err(e) = monitor_unlock_signal(&session_unlock, tx_unlock).await {
+            tracing::warn!("Unlock monitor exited: {}", e);
+        }
+    });
+    
+    loop {
+        tokio::select! {
+            Some(enabled) = rx_state.recv() => {
+                if enabled {
+                    println!("1");
+                } else {
+                    println!("0");
+                }
+                std::io::stdout().flush()?;
+            }
+            Some(()) = rx_event.recv() => {
+                let state = crate::State::load()?;
+                println!("{}", state);
+                std::io::stdout().flush()?;
+            }
+            else => break,
+        }
+    }
+    
+    Ok(())
+}
+
+async fn monitor_state_changed_signals(
+    session: &SessionInfo,
+    object_path: &str,
+    tx: tokio::sync::mpsc::Sender<bool>,
+) -> Result<()> {
+    use futures_util::StreamExt;
+    use zbus::MatchRule;
+    
+    let connection = Connection::session()
+        .await
+        .context("Failed to connect to session D-Bus")?;
+    
+    let match_rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .path(object_path)?
+        .interface("com.logind.IdleControl")?
+        .member("StateChanged")?
+        .build();
+    
+    let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
+    proxy.add_match_rule(match_rule.into()).await?;
+    
+    let mut stream = zbus::MessageStream::from(&connection);
+    
+    while let Some(msg) = stream.next().await {
+        if let Ok(msg) = msg {
+            if let Some(path) = msg.path() {
+                if path.as_str() == object_path {
+                    if let Some(interface) = msg.interface() {
+                        if interface.as_str() == "com.logind.IdleControl" {
+                            if let Some(member) = msg.member() {
+                                if member.as_str() == "StateChanged" {
+                                    if let Ok(enabled) = msg.body().deserialize::<bool>() {
+                                        tx.send(enabled).await.ok();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+async fn monitor_lock_signal(
+    session: &SessionInfo,
+    tx: tokio::sync::mpsc::Sender<()>,
+) -> Result<()> {
+    use futures_util::StreamExt;
+    use zbus::MatchRule;
+    
+    let connection = Connection::system()
+        .await
+        .context("Failed to connect to system D-Bus")?;
+    
+    let session_path = session.path.to_string();
+    
+    let match_rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .path(session_path.clone())?
+        .interface("org.freedesktop.login1.Session")?
+        .member("Lock")?
+        .build();
+    
+    let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
+    proxy.add_match_rule(match_rule.into()).await?;
+    
+    let mut stream = zbus::MessageStream::from(&connection);
+    
+    while let Some(msg) = stream.next().await {
+        if let Ok(msg) = msg {
+            if let Some(path) = msg.path() {
+                if path.as_str() == session_path {
+                    if let Some(member) = msg.member() {
+                        if member.as_str() == "Lock" {
+                            tx.send(()).await.ok();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+async fn monitor_unlock_signal(
+    session: &SessionInfo,
+    tx: tokio::sync::mpsc::Sender<()>,
+) -> Result<()> {
+    use futures_util::StreamExt;
+    use zbus::MatchRule;
+    
+    let connection = Connection::system()
+        .await
+        .context("Failed to connect to system D-Bus")?;
+    
+    let session_path = session.path.to_string();
+    
+    let match_rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .path(session_path.clone())?
+        .interface("org.freedesktop.login1.Session")?
+        .member("Unlock")?
+        .build();
+    
+    let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
+    proxy.add_match_rule(match_rule.into()).await?;
+    
+    let mut stream = zbus::MessageStream::from(&connection);
+    
+    while let Some(msg) = stream.next().await {
+        if let Ok(msg) = msg {
+            if let Some(path) = msg.path() {
+                if path.as_str() == session_path {
+                    if let Some(member) = msg.member() {
+                        if member.as_str() == "Unlock" {
+                            tx.send(()).await.ok();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+
 pub async fn listen_signals<F>(session: &SessionInfo, mut callback: F) -> Result<()>
 where
     F: FnMut(&str) + Send + 'static,
 {
     use futures_util::StreamExt;
+    use zbus::MatchRule;
     
     let object_path = get_object_path_for_session(session);
     
     let connection = Connection::session()
         .await
         .context("Failed to connect to session D-Bus")?;
+    
+    let match_rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .path(object_path.clone())?
+        .interface("com.logind.IdleControl")?
+        .build();
+    
+    let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
+    proxy.add_match_rule(match_rule.into()).await?;
     
     let mut stream = zbus::MessageStream::from(&connection);
     
@@ -148,12 +394,23 @@ where
     F: FnMut() + Send + 'static,
 {
     use futures_util::StreamExt;
+    use zbus::MatchRule;
     
     let connection = Connection::system()
         .await
         .context("Failed to connect to system D-Bus")?;
     
     let session_path = session.path.to_string();
+    
+    let match_rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .path(session_path.clone())?
+        .interface("org.freedesktop.login1.Session")?
+        .member("Lock")?
+        .build();
+    
+    let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
+    proxy.add_match_rule(match_rule.into()).await?;
     
     let mut stream = zbus::MessageStream::from(&connection);
     
