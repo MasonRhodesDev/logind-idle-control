@@ -2,6 +2,15 @@
 
 A lightweight Rust daemon for managing systemd-logind idle inhibitor locks with per-session D-Bus event system.
 
+## Documentation
+
+📚 **[Wiki](https://github.com/MasonRhodesDev/logind-idle-control/wiki)** - Comprehensive guides and integration examples:
+- [Waybar Integration](https://github.com/MasonRhodesDev/logind-idle-control/wiki/Waybar-Integration)
+- [AGS Integration](https://github.com/MasonRhodesDev/logind-idle-control/wiki/AGS-Integration)
+- [Custom D-Bus Consumers](https://github.com/MasonRhodesDev/logind-idle-control/wiki/Custom-D-Bus-Consumers)
+- [Multi-Session Setup](https://github.com/MasonRhodesDev/logind-idle-control/wiki/Multi-Session-Setup)
+- [Troubleshooting](https://github.com/MasonRhodesDev/logind-idle-control/wiki/Troubleshooting)
+
 ## Overview
 
 `logind-idle-control` provides **per-GUI-session** idle inhibition control through systemd-logind's native D-Bus API. Each graphical session (TTY) gets its own isolated daemon instance.
