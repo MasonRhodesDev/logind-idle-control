@@ -15,6 +15,7 @@ pub struct SessionInfo {
 )]
 trait Login1Manager {
     fn get_session_by_pid(&self, pid: u32) -> zbus::Result<(String, OwnedObjectPath)>;
+    fn get_session(&self, session_id: &str) -> zbus::Result<OwnedObjectPath>;
 }
 
 #[proxy(
@@ -38,10 +39,23 @@ pub async fn get_current_session() -> Result<SessionInfo> {
         .await
         .context("Failed to create logind manager proxy")?;
     
-    let (session_id, session_path) = manager_proxy
+    let (session_id, session_path) = match manager_proxy
         .get_session_by_pid(std::process::id())
         .await
-        .context("Failed to get session by PID")?;
+    {
+        Ok(result) => result,
+        Err(_) => {
+            if let Ok(session_id_str) = std::env::var("XDG_SESSION_ID") {
+                let session_path = manager_proxy
+                    .get_session(&session_id_str)
+                    .await
+                    .with_context(|| format!("Failed to get session '{}' from XDG_SESSION_ID", session_id_str))?;
+                (session_id_str, session_path)
+            } else {
+                bail!("Failed to get session by PID and XDG_SESSION_ID not set");
+            }
+        }
+    };
     
     let session_proxy = Login1SessionProxy::builder(&connection)
         .path(&session_path)?
@@ -72,5 +86,13 @@ pub async fn get_current_session() -> Result<SessionInfo> {
 }
 
 pub fn get_current_session_sync() -> Result<SessionInfo> {
-    tokio::runtime::Runtime::new()?.block_on(get_current_session())
+    if let Ok(session_id) = std::env::var("XDG_SESSION_ID") {
+        Ok(SessionInfo {
+            id: session_id,
+            path: OwnedObjectPath::try_from("/org/freedesktop/login1")
+                .context("Invalid placeholder path")?,
+        })
+    } else {
+        bail!("XDG_SESSION_ID not set in sync context");
+    }
 }

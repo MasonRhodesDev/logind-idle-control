@@ -66,8 +66,8 @@ impl State {
 impl std::fmt::Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Enabled => write!(f, "enabled"),
-            Self::Disabled => write!(f, "disabled"),
+            Self::Enabled => write!(f, "1"),
+            Self::Disabled => write!(f, "0"),
         }
     }
 }

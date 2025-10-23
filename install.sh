@@ -11,13 +11,9 @@ mkdir -p "$INSTALL_DIR"
 mkdir -p "$SYSTEMD_DIR"
 
 echo "→ Installing binaries to $INSTALL_DIR"
-cp logind-idle-daemon "$INSTALL_DIR/"
-cp logind-idle-ctl "$INSTALL_DIR/"
-cp waybar-module.sh "$INSTALL_DIR/logind-idle-waybar"
+cp target/release/logind-idle-control "$INSTALL_DIR/"
 
-chmod +x "$INSTALL_DIR/logind-idle-daemon"
-chmod +x "$INSTALL_DIR/logind-idle-ctl"
-chmod +x "$INSTALL_DIR/logind-idle-waybar"
+chmod +x "$INSTALL_DIR/logind-idle-control"
 
 echo "→ Installing systemd service to $SYSTEMD_DIR"
 cp systemd/logind-idle-control.service "$SYSTEMD_DIR/"
@@ -37,6 +33,5 @@ systemctl --user status logind-idle-control.service --no-pager -l
 
 echo ""
 echo "Next steps:"
-echo "  1. Add waybar integration (see README.md)"
-echo "  2. Test CLI: logind-idle-ctl status"
-echo "  3. Verify: systemd-inhibit --list | grep logind-idle-control"
+echo "  1. Test CLI: logind-idle-control status"
+echo "  2. Verify: systemd-inhibit --list | grep logind-idle-control"
