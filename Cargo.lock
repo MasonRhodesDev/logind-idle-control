@@ -1178,6 +1178,7 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 [[package]]
 name = "schema-tui"
 version = "0.1.0"
+source = "git+https://github.com/MasonRhodesDev/schema-tui.git#90bf1526f31cf20852b9c02fb3d17c94746fc425"
 dependencies = [
  "anyhow",
  "crossterm",
