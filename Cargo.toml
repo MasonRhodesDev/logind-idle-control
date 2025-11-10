@@ -20,4 +20,4 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 nix = { version = "0.29", features = ["signal"] }
 dirs = "5.0"
-schema-tui = { path = "../schema-tui" }
+schema-tui = { git = "https://github.com/MasonRhodesDev/schema-tui.git" }
