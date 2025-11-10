@@ -134,9 +134,9 @@ where
     
     while let Some(msg) = stream.next().await {
         if let Ok(msg) = msg {
-            if let Some(path) = msg.path() {
+            if let Some(path) = msg.header().path() {
                 if path.as_str() == session_path {
-                    if let Some(member) = msg.member() {
+                    if let Some(member) = msg.header().member() {
                         if member.as_str() == "Unlock" {
                             tracing::info!("Unlock signal detected for session {}", session.id);
                             callback();
@@ -210,7 +210,7 @@ pub async fn monitor_state_changes() -> Result<()> {
 }
 
 async fn monitor_state_changed_signals(
-    session: &SessionInfo,
+    _session: &SessionInfo,
     object_path: &str,
     tx: tokio::sync::mpsc::Sender<bool>,
 ) -> Result<()> {
@@ -235,11 +235,11 @@ async fn monitor_state_changed_signals(
     
     while let Some(msg) = stream.next().await {
         if let Ok(msg) = msg {
-            if let Some(path) = msg.path() {
+            if let Some(path) = msg.header().path() {
                 if path.as_str() == object_path {
-                    if let Some(interface) = msg.interface() {
+                    if let Some(interface) = msg.header().interface() {
                         if interface.as_str() == "com.logind.IdleControl" {
-                            if let Some(member) = msg.member() {
+                            if let Some(member) = msg.header().member() {
                                 if member.as_str() == "StateChanged" {
                                     if let Ok(enabled) = msg.body().deserialize::<bool>() {
                                         tx.send(enabled).await.ok();
@@ -280,12 +280,12 @@ async fn monitor_lock_signal(
     proxy.add_match_rule(match_rule.into()).await?;
     
     let mut stream = zbus::MessageStream::from(&connection);
-    
+
     while let Some(msg) = stream.next().await {
         if let Ok(msg) = msg {
-            if let Some(path) = msg.path() {
+            if let Some(path) = msg.header().path() {
                 if path.as_str() == session_path {
-                    if let Some(member) = msg.member() {
+                    if let Some(member) = msg.header().member() {
                         if member.as_str() == "Lock" {
                             tx.send(()).await.ok();
                         }
@@ -294,7 +294,7 @@ async fn monitor_lock_signal(
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -322,12 +322,12 @@ async fn monitor_unlock_signal(
     proxy.add_match_rule(match_rule.into()).await?;
     
     let mut stream = zbus::MessageStream::from(&connection);
-    
+
     while let Some(msg) = stream.next().await {
         if let Ok(msg) = msg {
-            if let Some(path) = msg.path() {
+            if let Some(path) = msg.header().path() {
                 if path.as_str() == session_path {
-                    if let Some(member) = msg.member() {
+                    if let Some(member) = msg.header().member() {
                         if member.as_str() == "Unlock" {
                             tx.send(()).await.ok();
                         }
@@ -336,7 +336,7 @@ async fn monitor_unlock_signal(
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -366,14 +366,14 @@ where
     let mut stream = zbus::MessageStream::from(&connection);
     
     tracing::info!("Listening for D-Bus signals on {} (session {})", object_path, session.id);
-    
+
     while let Some(msg) = stream.next().await {
         if let Ok(msg) = msg {
-            if let Some(path) = msg.path() {
+            if let Some(path) = msg.header().path() {
                 if path.as_str() == object_path {
-                    if let Some(interface) = msg.interface() {
+                    if let Some(interface) = msg.header().interface() {
                         if interface.as_str() == "com.logind.IdleControl" {
-                            if let Some(member) = msg.member() {
+                            if let Some(member) = msg.header().member() {
                                 let member_str = member.as_str();
                                 if member_str == "Enable" || member_str == "Disable" || member_str == "Toggle" {
                                     callback(member_str);
@@ -415,12 +415,12 @@ where
     let mut stream = zbus::MessageStream::from(&connection);
     
     tracing::info!("Listening for Lock signals on {} (session {})", session_path, session.id);
-    
+
     while let Some(msg) = stream.next().await {
         if let Ok(msg) = msg {
-            if let Some(path) = msg.path() {
+            if let Some(path) = msg.header().path() {
                 if path.as_str() == session_path {
-                    if let Some(member) = msg.member() {
+                    if let Some(member) = msg.header().member() {
                         if member.as_str() == "Lock" {
                             tracing::info!("Lock signal detected for session {}", session.id);
                             callback();
