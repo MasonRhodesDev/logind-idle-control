@@ -28,19 +28,14 @@ A **per-GUI-session** systemd-logind idle inhibitor control daemon in Rust with 
 **State Signals (from daemon):**
 - `StateChanged(boolean)` - Emitted when state changes
 
-### 4. Waybar Direct D-Bus Integration ✅
-**No shell scripts required!**
+### 4. Native System Tray Icon ✅
+**Native StatusNotifierItem (SNI) tray icon using ksni**
 
-**Option 1: Python D-Bus Module** (Recommended)
-- `examples/waybar-idle-dbus.py`
-- Auto-detects session ID
-- Listens to D-Bus `StateChanged` signals
-- Instant updates (no polling)
-- Uses pydbus + PyGObject
-
-**Option 2: Shell Script Fallback**
-- `waybar-module.sh` (polling-based)
-- Reads session-specific state file
+- Separate binary: `logind-idle-control-tray`
+- Works with Waybar, nwg-panel, and any SNI-compatible panel
+- Real-time icon updates via D-Bus `StateChanged` signals
+- Right-click menu: Enable/Disable/Toggle
+- No external dependencies (pure Rust)
 
 ### 5. Architecture
 
@@ -50,15 +45,17 @@ Rust Daemon (per session):
 ├── src/dbus.rs         - D-Bus signal emission/listening
 ├── src/state.rs        - Per-session state persistence
 ├── src/config.rs       - Configuration management
-└── src/bin/
-    ├── logind-idle-daemon.rs  - Main daemon
-    └── main.rs (logind-idle-ctl) - CLI tool
+└── src/main.rs         - Daemon and CLI
+
+Tray Icon (per session):
+├── src/tray/mod.rs     - ksni Tray implementation
+├── src/tray/main.rs    - Tray binary entry point
+└── icons/              - Embedded PNG icons
 
 Integration:
-├── systemd/logind-idle-control.service  - graphical-session.target
-├── examples/waybar-idle-dbus.py         - Python D-Bus waybar module
-├── examples/waybar-dbus-config.json     - Waybar config example
-└── config/schema.json                    - schema-tui config schema
+├── systemd/logind-idle-control.service       - Daemon service
+├── systemd/logind-idle-control-tray.service  - Tray icon service
+└── config/schema.json                        - Config schema
 ```
 
 ## How Session Isolation Works
@@ -115,7 +112,7 @@ dbus-monitor --session "path='/com/logind/IdleControl/session_${SESSION}'"
 | State Management | ❌ Single file | ✅ Per-session files |
 | D-Bus Path | ❌ Fixed path | ✅ Session-specific |
 | Lock Detection | ❌ Signal file | ✅ Native logind Lock signal |
-| Waybar Integration | ❌ Shell script polling | ✅ Python D-Bus listener |
+| Tray Integration | ❌ None | ✅ Native SNI tray icon |
 | Multi-TTY Support | ❌ Conflicts | ✅ Independent |
 | Lock Auto-Disable | ❌ After unlock | ✅ Before lock (configurable) |
 
@@ -129,14 +126,27 @@ disable_on_lock = true    # Auto-disable when locking
 log_level = "info"        # Logging verbosity
 ```
 
-## Future: schema-tui Integration
+## Installation
 
-Config schema is ready at `config/schema.json` for future TUI editor integration.
+```bash
+# Build both daemon and tray
+cargo build --release --features tray
+
+# Install binaries
+cp target/release/logind-idle-control ~/.local/bin/
+cp target/release/logind-idle-control-tray ~/.local/bin/
+
+# Install systemd services
+cp systemd/*.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now logind-idle-control.service
+systemctl --user enable --now logind-idle-control-tray.service
+```
 
 ## Repository
 
 Location: `~/repos/logind-idle-control`
 
 Binaries:
-- `target/release/logind-idle-daemon` - Main daemon
-- `target/release/logind-idle-ctl` - CLI control tool
+- `target/release/logind-idle-control` - Main daemon and CLI
+- `target/release/logind-idle-control-tray` - System tray icon (requires `--features tray`)

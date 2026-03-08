@@ -87,6 +87,20 @@ async fn run_daemon() -> Result<()> {
         *s = State::load().unwrap_or(State::Disabled);
         s.save()?;
         info!("Initial state: {} (state file: {:?})", *s, State::state_path());
+
+        // Acquire inhibitor if state is enabled on startup
+        if s.is_enabled() {
+            let mut lock = inhibitor_lock.lock().await;
+            match dbus::InhibitorLock::acquire().await {
+                Ok(inhibitor) => {
+                    *lock = Some(inhibitor);
+                    info!("Acquired inhibitor lock on startup");
+                }
+                Err(e) => {
+                    error!("Failed to acquire inhibitor lock on startup: {}", e);
+                }
+            }
+        }
     }
     
     let state_clone = Arc::clone(&state);
