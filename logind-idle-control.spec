@@ -59,6 +59,6 @@ fi
 * Thu Oct 23 2025 Mason Rhodes <mason@masonrhodes.dev> - 0.1.0-1
 - Initial RPM package
 - Single binary with daemon/ctl modes
-- Event-driven waybar integration
+- Native system tray icon (SNI)
 - Per-session D-Bus interface
 - Lock/Unlock signal support
