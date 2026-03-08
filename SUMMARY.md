@@ -66,14 +66,14 @@ TTY1 → Session 2:
   → Detects session 2
   → D-Bus: /com/logind/IdleControl/session_2
   → State: .../session-2.state
-  → Waybar connects to session_2 path
+  → Tray connects to session_2 path
 
 TTY2 → Session 3:
   systemd starts daemon instance 2
   → Detects session 3
   → D-Bus: /com/logind/IdleControl/session_3
   → State: .../session-3.state
-  → Waybar connects to session_3 path
+  → Tray connects to session_3 path
 
 Both run independently! 🎯
 ```
@@ -86,13 +86,13 @@ cd ~/repos/logind-idle-control
 cargo build --release
 
 # Install
-sudo cp target/release/logind-idle-{ctl,daemon} /usr/local/bin/
+cp target/release/logind-idle-control ~/.local/bin/
 cp systemd/logind-idle-control.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now logind-idle-control.service
 
 # Test
-logind-idle-ctl enable
+logind-idle-control enable
 systemd-inhibit --list | grep logind-idle-control
 
 # Check session
