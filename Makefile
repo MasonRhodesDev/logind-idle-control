@@ -3,6 +3,7 @@
 PREFIX ?= $(HOME)/.local
 BINDIR = $(PREFIX)/bin
 SYSTEMD_USER_DIR = $(HOME)/.config/systemd/user
+ICON_DIR = $(HOME)/.local/share/icons
 
 VERSION = $(shell grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
 PACKAGE_NAME = logind-idle-control
@@ -25,6 +26,17 @@ install: build build-tray
 	@mkdir -p $(BINDIR)
 	@install -m 755 $(BINARY) $(BINDIR)/$(PACKAGE_NAME)
 	@install -m 755 $(TRAY_BINARY) $(BINDIR)/$(PACKAGE_NAME)-tray
+	@echo "Installing tray icons..."
+	@mkdir -p $(ICON_DIR)/hicolor/scalable/status
+	@mkdir -p $(ICON_DIR)/breeze/status/22
+	@mkdir -p $(ICON_DIR)/breeze-dark/status/22
+	@install -m 644 icons/caffeine-cup-full-symbolic.svg $(ICON_DIR)/hicolor/scalable/status/
+	@install -m 644 icons/caffeine-cup-empty-symbolic.svg $(ICON_DIR)/hicolor/scalable/status/
+	@install -m 644 icons/caffeine-cup-full-symbolic.svg $(ICON_DIR)/breeze/status/22/
+	@install -m 644 icons/caffeine-cup-empty-symbolic.svg $(ICON_DIR)/breeze/status/22/
+	@install -m 644 icons/caffeine-cup-full-symbolic.svg $(ICON_DIR)/breeze-dark/status/22/
+	@install -m 644 icons/caffeine-cup-empty-symbolic.svg $(ICON_DIR)/breeze-dark/status/22/
+	@gtk-update-icon-cache -f -t $(ICON_DIR)/hicolor 2>/dev/null || true
 	@echo "Installing systemd services..."
 	@mkdir -p $(SYSTEMD_USER_DIR)
 	@install -m 644 systemd/logind-idle-control.service $(SYSTEMD_USER_DIR)/
@@ -72,6 +84,13 @@ uninstall:
 	@echo "Removing systemd service files..."
 	@rm -f $(SYSTEMD_USER_DIR)/logind-idle-control.service
 	@rm -f $(SYSTEMD_USER_DIR)/logind-idle-control-tray.service
+	@echo "Removing tray icons..."
+	@rm -f $(ICON_DIR)/hicolor/scalable/status/caffeine-cup-full-symbolic.svg
+	@rm -f $(ICON_DIR)/hicolor/scalable/status/caffeine-cup-empty-symbolic.svg
+	@rm -f $(ICON_DIR)/breeze/status/22/caffeine-cup-full-symbolic.svg
+	@rm -f $(ICON_DIR)/breeze/status/22/caffeine-cup-empty-symbolic.svg
+	@rm -f $(ICON_DIR)/breeze-dark/status/22/caffeine-cup-full-symbolic.svg
+	@rm -f $(ICON_DIR)/breeze-dark/status/22/caffeine-cup-empty-symbolic.svg
 	@echo "Removing binaries..."
 	@rm -f $(BINDIR)/$(PACKAGE_NAME)
 	@rm -f $(BINDIR)/$(PACKAGE_NAME)-tray
