@@ -1,13 +1,14 @@
-use image::GenericImageView;
 use ksni::menu::StandardItem;
-use ksni::{Icon, MenuItem, OfflineReason, Tray};
-use std::sync::LazyLock;
+use ksni::{MenuItem, OfflineReason, Tray};
 
 use logind_idle_control::dbus;
 
 pub struct IdleControlTray {
     pub enabled: bool,
     pub session_id: String,
+    /// When true, icon_name returns a dummy value to force ksni to emit NewIcon.
+    /// Set true, call update, then set false and call update again.
+    pub icon_invalidated: bool,
 }
 
 impl Tray for IdleControlTray {
@@ -16,20 +17,15 @@ impl Tray for IdleControlTray {
     }
 
     fn icon_name(&self) -> String {
-        // Use theme icons if available
-        if self.enabled {
-            "caffeine-cup-full".into()
-        } else {
-            "caffeine-cup-empty".into()
+        if self.icon_invalidated {
+            // Return a known-valid icon so ksni detects a change and emits NewIcon
+            // without showing a missing-icon placeholder during the transition
+            return "content-loading-symbolic".into();
         }
-    }
-
-    fn icon_pixmap(&self) -> Vec<Icon> {
-        // Fallback to embedded icons
         if self.enabled {
-            vec![ICON_ENABLED.clone()]
+            "caffeine-cup-full-symbolic".into()
         } else {
-            vec![ICON_DISABLED.clone()]
+            "caffeine-cup-empty-symbolic".into()
         }
     }
 
@@ -85,36 +81,5 @@ impl Tray for IdleControlTray {
     fn watcher_offline(&self, _reason: OfflineReason) -> bool {
         tracing::warn!("StatusNotifierWatcher went offline, will retry");
         true // Return true to keep running
-    }
-}
-
-// Embedded icons (ARGB32 format)
-static ICON_ENABLED: LazyLock<Icon> = LazyLock::new(|| load_icon(include_bytes!("../../icons/enabled.png")));
-
-static ICON_DISABLED: LazyLock<Icon> = LazyLock::new(|| load_icon(include_bytes!("../../icons/disabled.png")));
-
-fn load_icon(png_bytes: &[u8]) -> Icon {
-    let img = image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png)
-        .expect("valid embedded PNG");
-    let (width, height) = img.dimensions();
-    let rgba = img.into_rgba8();
-    let mut data = rgba.into_vec();
-
-    // Convert RGBA to ARGB (StatusNotifierItem requires ARGB in network byte order)
-    for pixel in data.chunks_exact_mut(4) {
-        let r = pixel[0];
-        let g = pixel[1];
-        let b = pixel[2];
-        let a = pixel[3];
-        pixel[0] = a;
-        pixel[1] = r;
-        pixel[2] = g;
-        pixel[3] = b;
-    }
-
-    Icon {
-        width: width as i32,
-        height: height as i32,
-        data,
     }
 }

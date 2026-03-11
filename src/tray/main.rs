@@ -30,6 +30,7 @@ async fn main() -> Result<()> {
     let tray = IdleControlTray {
         enabled: initial_state.is_enabled(),
         session_id: session.id.clone(),
+        icon_invalidated: false,
     };
 
     // Spawn the tray service
@@ -42,6 +43,14 @@ async fn main() -> Result<()> {
     tokio::spawn(async move {
         if let Err(e) = listen_state_changes(handle_clone, &session_clone).await {
             tracing::error!("State change listener error: {}", e);
+        }
+    });
+
+    // Listen for icon-theme changes and force tray icon refresh
+    let handle_clone = Arc::clone(&handle);
+    tokio::spawn(async move {
+        if let Err(e) = listen_theme_changes(handle_clone).await {
+            tracing::error!("Theme change listener error: {}", e);
         }
     });
 
@@ -97,6 +106,68 @@ async fn listen_state_changes(
                                     tray.enabled = enabled;
                                 }).await;
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Listen for icon-theme gsettings changes and force tray icon re-resolution.
+/// When lmtt switches themes, it changes org.gnome.desktop.interface icon-theme
+/// (e.g. breeze → breeze-dark). We need waybar to re-fetch our icon from the
+/// new theme, so we invalidate the icon name to trigger ksni's NewIcon signal.
+async fn listen_theme_changes(
+    handle: Arc<Mutex<ksni::Handle<tray_impl::IdleControlTray>>>,
+) -> Result<()> {
+    let connection = Connection::session()
+        .await
+        .context("Failed to connect to session D-Bus for theme changes")?;
+
+    // Watch for dconf changes on org.gnome.desktop.interface (covers icon-theme, color-scheme)
+    let match_rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .interface("ca.desrt.dconf.Writer")?
+        .member("Notify")?
+        .build();
+
+    let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
+    proxy.add_match_rule(match_rule.into()).await?;
+
+    let mut stream = zbus::MessageStream::from(&connection);
+
+    tracing::info!("Listening for icon-theme changes");
+
+    while let Some(msg) = stream.next().await {
+        if let Ok(msg) = msg {
+            if let Some(member) = msg.header().member() {
+                if member.as_str() == "Notify" {
+                    // dconf Notify sends (path, keys, tag)
+                    if let Ok((path, _, _)) =
+                        msg.body().deserialize::<(&str, Vec<&str>, &str)>()
+                    {
+                        if path.contains("desktop/interface") {
+                            tracing::info!("Icon theme changed, debouncing before refresh");
+                            // Debounce: wait for all gsettings keys to settle
+                            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                            // Drain any additional notifications that queued up
+                            while let Ok(Some(_)) = tokio::time::timeout(
+                                std::time::Duration::from_millis(50),
+                                stream.next(),
+                            ).await {}
+                            // Single invalidation cycle
+                            let h = handle.lock().await;
+                            h.update(|tray| {
+                                tray.icon_invalidated = true;
+                            }).await;
+                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                            h.update(|tray| {
+                                tray.icon_invalidated = false;
+                            }).await;
+                            tracing::info!("Tray icon refreshed");
                         }
                     }
                 }
