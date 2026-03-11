@@ -32,8 +32,7 @@ dirs = "5.0"
 
 # Tray dependencies (optional)
 ksni = { version = "0.3", optional = true }
-image = { version = "0.25", optional = true, default-features = false, features = ["png"] }
 
 [features]
 default = []
-tray = ["ksni", "image"]
+tray = ["ksni"]
