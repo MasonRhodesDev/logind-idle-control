@@ -6,10 +6,10 @@ use std::path::PathBuf;
 pub struct Config {
     #[serde(default = "default_state_on_start")]
     pub state_on_start: bool,
-    
+
     #[serde(default = "default_disable_on_lock")]
     pub disable_on_lock: bool,
-    
+
     #[serde(default = "default_log_level")]
     pub log_level: String,
 }
@@ -39,7 +39,7 @@ impl Default for Config {
 impl Config {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path();
-        
+
         if config_path.exists() {
             let content = std::fs::read_to_string(&config_path)?;
             let config: Config = toml::from_str(&content)?;
@@ -48,19 +48,19 @@ impl Config {
             Ok(Self::default())
         }
     }
-    
+
     pub fn save(&self) -> Result<()> {
         let config_path = Self::config_path();
-        
+
         if let Some(parent) = config_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        
+
         let content = toml::to_string_pretty(self)?;
         std::fs::write(config_path, content)?;
         Ok(())
     }
-    
+
     pub fn config_path() -> PathBuf {
         dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
