@@ -3,6 +3,7 @@ use ksni::{MenuItem, OfflineReason, Tray};
 
 use logind_idle_control::dbus;
 
+#[derive(Clone)]
 pub struct IdleControlTray {
     pub enabled: bool,
     pub session_id: String,
@@ -58,24 +59,22 @@ impl Tray for IdleControlTray {
     }
 
     fn menu(&self) -> Vec<MenuItem<Self>> {
-        vec![
-            StandardItem {
-                label: if self.enabled {
-                    "Disable Idle Inhibitor".into()
-                } else {
-                    "Enable Idle Inhibitor".into()
-                },
-                activate: Box::new(|_| {
-                    tokio::spawn(async {
-                        if let Err(e) = dbus::emit_signal("Toggle").await {
-                            tracing::error!("Failed to toggle: {}", e);
-                        }
-                    });
-                }),
-                ..Default::default()
-            }
-            .into(),
-        ]
+        vec![StandardItem {
+            label: if self.enabled {
+                "Disable Idle Inhibitor".into()
+            } else {
+                "Enable Idle Inhibitor".into()
+            },
+            activate: Box::new(|_| {
+                tokio::spawn(async {
+                    if let Err(e) = dbus::emit_signal("Toggle").await {
+                        tracing::error!("Failed to toggle: {}", e);
+                    }
+                });
+            }),
+            ..Default::default()
+        }
+        .into()]
     }
 
     fn watcher_offline(&self, _reason: OfflineReason) -> bool {
