@@ -70,6 +70,8 @@ cd ~/repos/logind-idle-control
 make install
 ```
 
+`make install` installs both the daemon and the optional tray binary. The tray requires an SNI-compatible tray host that provides `org.kde.StatusNotifierWatcher` on the session bus.
+
 **Upgrading:**
 ```bash
 make install  # Intelligently handles updates and service restart
@@ -107,14 +109,19 @@ sudo dnf remove logind-idle-control
 
 ```bash
 cd ~/repos/logind-idle-control
-cargo build --release
+cargo build --release --features tray
 
 mkdir -p ~/.local/bin ~/.config/systemd/user
 cp target/release/logind-idle-control ~/.local/bin/
+cp target/release/logind-idle-control-tray ~/.local/bin/
+cp systemd/logind-idle-control-tray.service ~/.config/systemd/user/
 cp systemd/logind-idle-control.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now logind-idle-control.service
+systemctl --user enable --now logind-idle-control-tray.service
 ```
+
+The tray is optional and requires an SNI-compatible tray host. If the watcher is not available during login, the tray service now waits for it instead of restart-looping.
 
 ## CLI Usage
 
@@ -228,6 +235,9 @@ $ logind-idle-control status
 # Check daemon
 systemctl --user status logind-idle-control.service
 
+# Check tray service
+systemctl --user status logind-idle-control-tray.service
+
 # Check session
 loginctl session-status | head -1
 
@@ -240,6 +250,9 @@ dbus-monitor --session "path='/com/logind/IdleControl/session_${SESSION}'"
 
 # Check state file
 cat $XDG_RUNTIME_DIR/logind-idle-control-session-${SESSION}.state
+
+# Follow tray logs
+journalctl --user -u logind-idle-control-tray.service -f
 ```
 
 ## Architecture
@@ -286,6 +299,26 @@ When `disable_on_lock = true`, daemon listens to session-specific `org.freedeskt
 ```bash
 journalctl --user -u logind-idle-control.service -f
 loginctl session-status  # Must show Type: x11 or wayland
+```
+
+### Tray waits for a host
+The tray binary requires an SNI-compatible tray host that owns `org.kde.StatusNotifierWatcher`. On login, the tray service may start before the watcher exists. That is now expected: the process stays alive and waits locally until the watcher appears.
+
+Expected tray log messages:
+
+- `StatusNotifierWatcher not available yet; waiting for tray host`
+- `StatusNotifierWatcher detected; registering tray icon`
+- `Tray icon registered`
+
+If the watcher disappears during registration, the tray retries and logs:
+
+- `Tray registration raced with watcher disappearance; retrying`
+
+For actual tray startup failures unrelated to watcher availability, inspect:
+
+```bash
+systemctl --user status logind-idle-control-tray.service
+journalctl --user -u logind-idle-control-tray.service -f
 ```
 
 ### Session detection issues

@@ -143,6 +143,8 @@ systemctl --user enable --now logind-idle-control.service
 systemctl --user enable --now logind-idle-control-tray.service
 ```
 
+The tray binary requires an SNI-compatible tray host that exposes `org.kde.StatusNotifierWatcher`. If the watcher appears late during login, the tray now waits in-process and registers when the watcher becomes available.
+
 ## Repository
 
 Location: `~/repos/logind-idle-control`
@@ -150,3 +152,7 @@ Location: `~/repos/logind-idle-control`
 Binaries:
 - `target/release/logind-idle-control` - Main daemon and CLI
 - `target/release/logind-idle-control-tray` - System tray icon (requires `--features tray`)
+
+Verification:
+- `systemctl --user status logind-idle-control-tray.service`
+- `journalctl --user -u logind-idle-control-tray.service -f`

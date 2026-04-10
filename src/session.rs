@@ -1,6 +1,6 @@
-use anyhow::{Context, Result, bail};
-use zbus::{proxy, Connection};
+use anyhow::{bail, Context, Result};
 use zbus::zvariant::OwnedObjectPath;
+use zbus::{proxy, Connection};
 
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
@@ -25,7 +25,7 @@ trait Login1Manager {
 trait Login1Session {
     #[zbus(property)]
     fn type_(&self) -> zbus::Result<String>;
-    
+
     #[zbus(property)]
     fn display(&self) -> zbus::Result<String>;
 }
@@ -34,51 +34,54 @@ pub async fn get_current_session() -> Result<SessionInfo> {
     let connection = Connection::system()
         .await
         .context("Failed to connect to system D-Bus")?;
-    
+
     let manager_proxy = Login1ManagerProxy::new(&connection)
         .await
         .context("Failed to create logind manager proxy")?;
-    
-    let (session_id, session_path) = match manager_proxy
-        .get_session_by_pid(std::process::id())
-        .await
-    {
-        Ok(result) => result,
-        Err(_) => {
-            if let Ok(session_id_str) = std::env::var("XDG_SESSION_ID") {
-                let session_path = manager_proxy
-                    .get_session(&session_id_str)
-                    .await
-                    .with_context(|| format!("Failed to get session '{}' from XDG_SESSION_ID", session_id_str))?;
-                (session_id_str, session_path)
-            } else {
-                bail!("Failed to get session by PID and XDG_SESSION_ID not set");
+
+    let (session_id, session_path) =
+        match manager_proxy.get_session_by_pid(std::process::id()).await {
+            Ok(result) => result,
+            Err(_) => {
+                if let Ok(session_id_str) = std::env::var("XDG_SESSION_ID") {
+                    let session_path = manager_proxy
+                        .get_session(&session_id_str)
+                        .await
+                        .with_context(|| {
+                            format!(
+                                "Failed to get session '{}' from XDG_SESSION_ID",
+                                session_id_str
+                            )
+                        })?;
+                    (session_id_str, session_path)
+                } else {
+                    bail!("Failed to get session by PID and XDG_SESSION_ID not set");
+                }
             }
-        }
-    };
-    
+        };
+
     let session_proxy = Login1SessionProxy::builder(&connection)
         .path(&session_path)?
         .build()
         .await
         .context("Failed to create session proxy")?;
-    
+
     let session_type = session_proxy
         .type_()
         .await
         .context("Failed to get session type")?;
-    
+
     if session_type != "x11" && session_type != "wayland" {
         bail!("Not a graphical session (type: {})", session_type);
     }
-    
+
     tracing::debug!(
         "Detected graphical session: id={}, type={}, path={}",
         session_id,
         session_type,
         session_path
     );
-    
+
     Ok(SessionInfo {
         id: session_id,
         path: session_path,
