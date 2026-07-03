@@ -173,7 +173,7 @@ async fn listen_state_changes(
         .build();
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
-    proxy.add_match_rule(match_rule.into()).await?;
+    proxy.add_match_rule(match_rule).await?;
 
     let mut stream = zbus::MessageStream::from(&connection);
 
@@ -222,7 +222,7 @@ async fn listen_theme_changes(
         .build();
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
-    proxy.add_match_rule(match_rule.into()).await?;
+    proxy.add_match_rule(match_rule).await?;
 
     let mut stream = zbus::MessageStream::from(&connection);
 

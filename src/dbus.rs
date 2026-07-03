@@ -123,7 +123,7 @@ where
         .build();
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
-    proxy.add_match_rule(match_rule.into()).await?;
+    proxy.add_match_rule(match_rule).await?;
 
     let mut stream = zbus::MessageStream::from(&connection);
 
@@ -230,7 +230,7 @@ async fn monitor_state_changed_signals(
         .build();
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
-    proxy.add_match_rule(match_rule.into()).await?;
+    proxy.add_match_rule(match_rule).await?;
 
     let mut stream = zbus::MessageStream::from(&connection);
 
@@ -278,7 +278,7 @@ async fn monitor_lock_signal(
         .build();
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
-    proxy.add_match_rule(match_rule.into()).await?;
+    proxy.add_match_rule(match_rule).await?;
 
     let mut stream = zbus::MessageStream::from(&connection);
 
@@ -320,7 +320,7 @@ async fn monitor_unlock_signal(
         .build();
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
-    proxy.add_match_rule(match_rule.into()).await?;
+    proxy.add_match_rule(match_rule).await?;
 
     let mut stream = zbus::MessageStream::from(&connection);
 
@@ -361,7 +361,7 @@ where
         .build();
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
-    proxy.add_match_rule(match_rule.into()).await?;
+    proxy.add_match_rule(match_rule).await?;
 
     let mut stream = zbus::MessageStream::from(&connection);
 
@@ -417,7 +417,7 @@ where
         .build();
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
-    proxy.add_match_rule(match_rule.into()).await?;
+    proxy.add_match_rule(match_rule).await?;
 
     let mut stream = zbus::MessageStream::from(&connection);
 

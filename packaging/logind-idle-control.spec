@@ -9,7 +9,7 @@
 Name:           logind-idle-control
 Version:        0.2.0
 Release:        1%{?dist}
-Summary:        Systemd-logind idle inhibitor control with per-session D-Bus interface and SNI tray
+Summary:        Per-session idle inhibitor control for systemd-logind
 License:        MIT
 URL:            https://github.com/MasonRhodesDev/logind-idle-control
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
