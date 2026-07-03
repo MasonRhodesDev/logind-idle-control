@@ -7,7 +7,7 @@ Wants=logind-idle-control.service
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/logind-idle-control-tray
+ExecStart=/usr/bin/logind-idle-control-tray
 Restart=on-failure
 RestartSec=5
 

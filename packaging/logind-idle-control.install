@@ -1,0 +1,21 @@
+# logind-idle-control ships per-user systemd units; Arch does not auto-enable
+# user units, so starting them is left to the user. Icon caches are refreshed
+# by the standard gtk-update-icon-cache pacman hook (hicolor-icon-theme dep).
+
+post_install() {
+    cat <<'EOF'
+Enable per user with:
+  systemctl --user enable --now logind-idle-control.service
+  systemctl --user enable --now logind-idle-control-tray.service   # optional SNI tray
+EOF
+}
+
+post_upgrade() {
+    # Running instances pick the new binary up on their next (user-initiated)
+    # restart; nothing to do system-wide for user units.
+    :
+}
+
+post_remove() {
+    echo "Per-user units were removed; run 'systemctl --user daemon-reload' in active sessions."
+}
