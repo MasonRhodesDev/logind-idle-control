@@ -1,0 +1,54 @@
+# Maintainer: Mason Rhodes <mrhodesdev@gmail.com>
+#
+# Arch package for logind-idle-control. Same payload as the Fedora RPM
+# (packaging/logind-idle-control.spec); all paths are identical across both
+# distros. Usable directly with makepkg from this directory after a release
+# tag is pushed. CI drops a HEAD snapshot tarball with the same filename next
+# to the PKGBUILD, so PR builds never download.
+
+pkgname=logind-idle-control
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="Systemd-logind idle inhibitor control with per-session D-Bus interface and SNI tray"
+arch=('x86_64')
+url="https://github.com/MasonRhodesDev/logind-idle-control"
+license=('MIT')
+install="$pkgname.install"
+depends=('systemd' 'dbus' 'hicolor-icon-theme')
+makedepends=('cargo')
+optdepends=(
+  'waybar: SNI tray host for logind-idle-control-tray'
+)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/MasonRhodesDev/$pkgname/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP') # pin on release: updpkgsums
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --features tray
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo test --frozen --release --features tray
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 "target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
+  install -Dm755 "target/release/$pkgname-tray" "$pkgdir/usr/bin/$pkgname-tray"
+  install -Dm644 dist/logind-idle-control.service "$pkgdir/usr/lib/systemd/user/logind-idle-control.service"
+  install -Dm644 dist/logind-idle-control-tray.service "$pkgdir/usr/lib/systemd/user/logind-idle-control-tray.service"
+  install -Dm644 icons/caffeine-cup-full-symbolic.svg "$pkgdir/usr/share/icons/hicolor/scalable/status/caffeine-cup-full-symbolic.svg"
+  install -Dm644 icons/caffeine-cup-empty-symbolic.svg "$pkgdir/usr/share/icons/hicolor/scalable/status/caffeine-cup-empty-symbolic.svg"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
