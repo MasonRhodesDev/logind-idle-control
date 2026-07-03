@@ -1,6 +1,6 @@
 [package]
 name = "logind-idle-control"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Mason Rhodes <mason@masonrhodes.dev>"]
 license = "MIT"
