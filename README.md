@@ -61,67 +61,44 @@ Sessions don't interfere with each other.
 
 ## Installation
 
-### Method 1: Makefile (Recommended)
+### Arch Linux
 
-```bash
-cd ~/repos/logind-idle-control
+Add the `[mason]` repo to `/etc/pacman.conf`:
 
-# Build and install to ~/.local/bin
-make install
+```ini
+[mason]
+SigLevel = Optional TrustAll
+Server = https://masonrhodesdev.github.io/arch-repo/x86_64
 ```
 
-`make install` installs both the daemon and the optional tray binary. The tray requires an SNI-compatible tray host that provides `org.kde.StatusNotifierWatcher` on the session bus.
-
-**Upgrading:**
 ```bash
-make install  # Intelligently handles updates and service restart
+sudo pacman -Syu logind-idle-control
 ```
 
-**Uninstalling:**
+### Fedora (COPR)
+
 ```bash
-make uninstall
+sudo dnf copr enable solaris765/logind-idle-control
+sudo dnf install logind-idle-control
 ```
 
-### Method 2: RPM Package (System-wide)
+### From source (dev fallback)
 
 ```bash
-cd ~/repos/logind-idle-control
-
-# Build RPM
-make rpm
-
-# Install
-sudo dnf install rpmbuild/RPMS/x86_64/logind-idle-control-*.rpm
+make            # builds daemon + tray
+sudo make install   # DESTDIR/PREFIX-correct; default PREFIX=/usr/local
 ```
 
-**Upgrading:**
-```bash
-make rpm
-sudo dnf upgrade rpmbuild/RPMS/x86_64/logind-idle-control-*.rpm
-```
+### After installing
 
-**Uninstalling:**
-```bash
-sudo dnf remove logind-idle-control
-```
-
-### Method 3: Manual Installation
+The package ships both user units and the tray icons; enable per user:
 
 ```bash
-cd ~/repos/logind-idle-control
-cargo build --release --features tray
-
-mkdir -p ~/.local/bin ~/.config/systemd/user
-cp target/release/logind-idle-control ~/.local/bin/
-cp target/release/logind-idle-control-tray ~/.local/bin/
-cp systemd/logind-idle-control-tray.service ~/.config/systemd/user/
-cp systemd/logind-idle-control.service ~/.config/systemd/user/
-systemctl --user daemon-reload
 systemctl --user enable --now logind-idle-control.service
-systemctl --user enable --now logind-idle-control-tray.service
+systemctl --user enable --now logind-idle-control-tray.service   # optional
 ```
 
-The tray is optional and requires an SNI-compatible tray host. If the watcher is not available during login, the tray service now waits for it instead of restart-looping.
+The tray is optional and requires an SNI-compatible tray host that provides `org.kde.StatusNotifierWatcher` on the session bus. If the watcher is not available during login, the tray service waits for it instead of restart-looping.
 
 ## CLI Usage
 
