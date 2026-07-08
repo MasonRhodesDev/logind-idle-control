@@ -127,6 +127,10 @@ log_level = "info"        # Logging verbosity
 
 UI applications can monitor idle inhibitor state via D-Bus signals directly.
 
+<img src=".github/screenshots/tray-enabled.png" alt="Waybar tray crop: full caffeine cup icon, inhibitor enabled, next to battery percentage"> <img src=".github/screenshots/tray-disabled.png" alt="Waybar tray crop: crossed-out caffeine cup icon, inhibitor disabled, next to battery percentage">
+
+The bundled tray icon in Waybar: inhibitor enabled (full cup) vs disabled (crossed-out cup).
+
 ### D-Bus Integration Pattern
 
 Your UI module should:
@@ -233,6 +237,30 @@ journalctl --user -u logind-idle-control-tray.service -f
 ```
 
 ## Architecture
+
+```mermaid
+flowchart TD
+    CLI["CLI: logind-idle-control enable / disable / toggle"]
+    BIND["Hyprland keybind (exec logind-idle-control toggle)"]
+    TRAY["Tray icon — ksni StatusNotifierItem (requires a StatusNotifierWatcher host, e.g. sni-watcher or the bar's own)"]
+
+    BIND --> CLI
+    CLI -->|"Enable / Disable / Toggle signals on com.logind.IdleControl at /com/logind/IdleControl/session_N"| CTRL
+    TRAY -->|"click: Toggle signal on the same object path"| CTRL
+
+    subgraph DAEMON ["Per-session daemon"]
+        CTRL["control signal handler"]
+        LOCK["InhibitorLock — RAII holder of the logind fd (Drop = close fd = release)"]
+        STATE["state file: $XDG_RUNTIME_DIR/logind-idle-control-session-N.state"]
+        CTRL --> LOCK
+        CTRL --> STATE
+    end
+
+    LOCK -->|"org.freedesktop.login1.Manager Inhibit('idle', ...) returns held fd"| LOGIND["systemd-logind"]
+    LOGIND -->|"Session Lock signal: auto-release inhibitor"| CTRL
+    LOGIND -->|"Session Unlock signal: re-acquire inhibitor"| CTRL
+    CTRL -->|"StateChanged(enabled) D-Bus signal: tray updates icon"| TRAY
+```
 
 ```
 TTY1 (Session 2):
