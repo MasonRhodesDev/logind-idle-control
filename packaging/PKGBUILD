@@ -7,7 +7,7 @@
 # to the PKGBUILD, so PR builds never download.
 
 pkgname=logind-idle-control
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=1
 pkgdesc="Systemd-logind idle inhibitor control with per-session D-Bus interface and SNI tray"
 arch=('x86_64')

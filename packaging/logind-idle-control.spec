@@ -7,7 +7,7 @@
 %bcond_without check
 
 Name:           logind-idle-control
-Version:        0.2.0
+Version:        0.2.1
 Release:        1%{?dist}
 Summary:        Per-session idle inhibitor control for systemd-logind
 License:        MIT
@@ -42,6 +42,9 @@ logind-idle-control-tray.service`.
 
 %install
 %cargo_install -f tray
+# Newer rust-packaging (F44) also installs lib-crate sources into the cargo
+# registry — not shipped by this package.
+rm -rf %{buildroot}%{_datadir}/cargo
 install -Dpm0644 dist/logind-idle-control.service %{buildroot}%{_userunitdir}/logind-idle-control.service
 install -Dpm0644 dist/logind-idle-control-tray.service %{buildroot}%{_userunitdir}/logind-idle-control-tray.service
 install -Dpm0644 icons/caffeine-cup-full-symbolic.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/status/caffeine-cup-full-symbolic.svg
@@ -75,6 +78,9 @@ install -Dpm0644 icons/caffeine-cup-empty-symbolic.svg %{buildroot}%{_datadir}/i
 %{_datadir}/icons/hicolor/scalable/status/caffeine-cup-empty-symbolic.svg
 
 %changelog
+* Tue Jul 14 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.2.1-1
+- Drop unpackaged cargo-registry files installed by F44 rust macros
+
 * Thu Jul 02 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.2.0-1
 - Packaged install only: binaries in /usr/bin, user units in
   /usr/lib/systemd/user, tray icons in hicolor scalable/status
