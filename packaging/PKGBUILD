@@ -20,7 +20,7 @@ optdepends=(
   'waybar: SNI tray host for logind-idle-control-tray'
 )
 source=("$pkgname-$pkgver.tar.gz::https://github.com/MasonRhodesDev/$pkgname/archive/v$pkgver.tar.gz")
-sha256sums=('SKIP') # pin on release: updpkgsums
+sha256sums=('e0140c5f48be01bcbd10b3708b975b801ff13ecf0981868b854d3b0864578e0c')
 
 prepare() {
   cd "$pkgname-$pkgver"
