@@ -55,10 +55,10 @@ EOF
 %{cargo_license -f tray} > LICENSE.dependencies
 
 %install
-%cargo_install -f tray
-# Newer rust-packaging (F44) also installs lib-crate sources into the cargo
-# registry — not shipped by this package.
-rm -rf %{buildroot}%{_datadir}/cargo
+# %%cargo_install re-resolves without Cargo.lock; git pins then fail offline.
+# %%cargo_build already produced the rpm-profile binaries.
+install -Dpm0755 target/rpm/logind-idle-control %{buildroot}%{_bindir}/logind-idle-control
+install -Dpm0755 target/rpm/logind-idle-control-tray %{buildroot}%{_bindir}/logind-idle-control-tray
 install -Dpm0644 dist/logind-idle-control.service %{buildroot}%{_userunitdir}/logind-idle-control.service
 install -Dpm0644 dist/logind-idle-control-tray.service %{buildroot}%{_userunitdir}/logind-idle-control-tray.service
 install -Dpm0644 icons/caffeine-cup-full-symbolic.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/status/caffeine-cup-full-symbolic.svg
