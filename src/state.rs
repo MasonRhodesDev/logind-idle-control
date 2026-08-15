@@ -56,8 +56,8 @@ impl State {
             .canonicalize()
             .context("XDG_RUNTIME_DIR could not be resolved")?;
 
-        if let Ok(session) = crate::session::get_current_session_sync() {
-            Ok(runtime_dir.join(format!("logind-idle-control-session-{}.state", session.id)))
+        if let Ok(session_id) = hypr_logind::session_id_from_env() {
+            Ok(runtime_dir.join(format!("logind-idle-control-session-{}.state", session_id)))
         } else {
             Ok(runtime_dir.join("logind-idle-control.state"))
         }

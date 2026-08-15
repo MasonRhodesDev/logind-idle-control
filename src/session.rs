@@ -1,6 +1,6 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use zbus::zvariant::OwnedObjectPath;
-use zbus::{proxy, Connection};
+use zbus::Connection;
 
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
@@ -8,94 +8,23 @@ pub struct SessionInfo {
     pub path: OwnedObjectPath,
 }
 
-#[proxy(
-    interface = "org.freedesktop.login1.Manager",
-    default_service = "org.freedesktop.login1",
-    default_path = "/org/freedesktop/login1"
-)]
-trait Login1Manager {
-    fn get_session_by_pid(&self, pid: u32) -> zbus::Result<(String, OwnedObjectPath)>;
-    fn get_session(&self, session_id: &str) -> zbus::Result<OwnedObjectPath>;
-}
-
-#[proxy(
-    interface = "org.freedesktop.login1.Session",
-    default_service = "org.freedesktop.login1"
-)]
-trait Login1Session {
-    #[zbus(property)]
-    fn type_(&self) -> zbus::Result<String>;
-
-    #[zbus(property)]
-    fn display(&self) -> zbus::Result<String>;
-}
-
 pub async fn get_current_session() -> Result<SessionInfo> {
     let connection = Connection::system()
         .await
         .context("Failed to connect to system D-Bus")?;
 
-    let manager_proxy = Login1ManagerProxy::new(&connection)
+    let session = hypr_logind::resolve_graphical_session(&connection)
         .await
-        .context("Failed to create logind manager proxy")?;
-
-    let (session_id, session_path) =
-        match manager_proxy.get_session_by_pid(std::process::id()).await {
-            Ok(result) => result,
-            Err(_) => {
-                if let Ok(session_id_str) = std::env::var("XDG_SESSION_ID") {
-                    let session_path = manager_proxy
-                        .get_session(&session_id_str)
-                        .await
-                        .with_context(|| {
-                            format!(
-                                "Failed to get session '{}' from XDG_SESSION_ID",
-                                session_id_str
-                            )
-                        })?;
-                    (session_id_str, session_path)
-                } else {
-                    bail!("Failed to get session by PID and XDG_SESSION_ID not set");
-                }
-            }
-        };
-
-    let session_proxy = Login1SessionProxy::builder(&connection)
-        .path(&session_path)?
-        .build()
-        .await
-        .context("Failed to create session proxy")?;
-
-    let session_type = session_proxy
-        .type_()
-        .await
-        .context("Failed to get session type")?;
-
-    if session_type != "x11" && session_type != "wayland" {
-        bail!("Not a graphical session (type: {})", session_type);
-    }
+        .context("Failed to resolve graphical logind session")?;
 
     tracing::debug!(
-        "Detected graphical session: id={}, type={}, path={}",
-        session_id,
-        session_type,
-        session_path
+        "Detected graphical session: id={}, path={}",
+        session.id(),
+        session.path()
     );
 
     Ok(SessionInfo {
-        id: session_id,
-        path: session_path,
+        id: session.id().to_owned(),
+        path: session.path().clone(),
     })
-}
-
-pub fn get_current_session_sync() -> Result<SessionInfo> {
-    if let Ok(session_id) = std::env::var("XDG_SESSION_ID") {
-        Ok(SessionInfo {
-            id: session_id,
-            path: OwnedObjectPath::try_from("/org/freedesktop/login1")
-                .context("Invalid placeholder path")?,
-        })
-    } else {
-        bail!("XDG_SESSION_ID not set in sync context");
-    }
 }

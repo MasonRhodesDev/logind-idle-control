@@ -4,22 +4,10 @@ use anyhow::{bail, Context, Result};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use zbus::object_server::SignalEmitter;
-use zbus::zvariant::{OwnedFd, OwnedObjectPath};
 use zbus::{interface, proxy, Connection};
 
-#[proxy(
-    interface = "org.freedesktop.login1.Manager",
-    default_service = "org.freedesktop.login1",
-    default_path = "/org/freedesktop/login1"
-)]
-trait Login1Manager {
-    fn inhibit(&self, what: &str, who: &str, why: &str, mode: &str) -> zbus::Result<OwnedFd>;
-
-    fn get_session_by_pid(&self, pid: u32) -> zbus::Result<(String, OwnedObjectPath)>;
-}
-
 pub struct InhibitorLock {
-    _fd: OwnedFd,
+    _inhibit: hypr_logind::Inhibitor,
 }
 
 impl InhibitorLock {
@@ -28,23 +16,23 @@ impl InhibitorLock {
             .await
             .context("Failed to connect to system D-Bus")?;
 
-        let proxy = Login1ManagerProxy::new(&connection)
+        let proxy = hypr_logind::LogindManagerProxy::new(&connection)
             .await
             .context("Failed to create logind proxy")?;
 
-        let fd = proxy
-            .inhibit(
-                "idle",
-                "logind-idle-control",
-                "User requested idle inhibition",
-                "block",
-            )
-            .await
-            .context("Failed to acquire inhibitor lock from logind")?;
+        let inhibit = hypr_logind::Inhibitor::acquire(
+            &proxy,
+            "idle",
+            "logind-idle-control",
+            "User requested idle inhibition",
+            "block",
+        )
+        .await
+        .context("Failed to acquire inhibitor lock from logind")?;
 
         tracing::info!("Acquired idle inhibitor lock");
 
-        Ok(Self { _fd: fd })
+        Ok(Self { _inhibit: inhibit })
     }
 }
 

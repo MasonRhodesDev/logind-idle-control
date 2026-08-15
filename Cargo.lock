@@ -477,6 +477,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hypr-logind"
+version = "0.1.0"
+source = "git+https://github.com/MasonRhodesDev/hypr-logind?rev=8c331f285724e671beb71595d1dc8e07a5fcde73#8c331f285724e671beb71595d1dc8e07a5fcde73"
+dependencies = [
+ "libc",
+ "zbus",
+]
+
+[[package]]
 name = "hypr-paths"
 version = "0.1.0"
 source = "git+https://github.com/MasonRhodesDev/hypr-paths?rev=535cec729936310b480c99203c05b5900d2a7e71#535cec729936310b480c99203c05b5900d2a7e71"
@@ -566,6 +575,7 @@ dependencies = [
  "anyhow",
  "clap",
  "futures-util",
+ "hypr-logind",
  "hypr-paths",
  "ksni",
  "nix",
