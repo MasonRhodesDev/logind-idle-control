@@ -52,7 +52,7 @@ impl Tray for IdleControlTray {
 
     fn activate(&mut self, _x: i32, _y: i32) {
         tokio::spawn(async {
-            if let Err(e) = dbus::emit_signal("Toggle").await {
+            if let Err(e) = dbus::toggle().await {
                 tracing::error!("Failed to toggle: {}", e);
             }
         });
@@ -67,7 +67,7 @@ impl Tray for IdleControlTray {
             },
             activate: Box::new(|_| {
                 tokio::spawn(async {
-                    if let Err(e) = dbus::emit_signal("Toggle").await {
+                    if let Err(e) = dbus::toggle().await {
                         tracing::error!("Failed to toggle: {}", e);
                     }
                 });

@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
     tracing::info!("Starting tray for session {}", session.id);
 
     // Load initial state from file
-    let initial_state = State::load().unwrap_or(State::Disabled);
+    let initial_state = State::load()?;
     tracing::info!("Initial state: {:?}", initial_state);
 
     let tray = IdleControlTray {

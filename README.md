@@ -45,13 +45,21 @@ Sessions don't interfere with each other.
 - **Object Path**: `/com/logind/IdleControl/session_<SESSION_ID>`
 - **Interface**: `com.logind.IdleControl`
 
-### Control Signals (Emit to daemon)
+### Control Methods (Call the owning service)
 
-| Signal | Description |
-|--------|-------------|
-| `Enable` | Enable idle inhibitor for this session |
-| `Disable` | Disable idle inhibitor for this session |
-| `Toggle` | Toggle idle inhibitor state for this session |
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Enable` | `boolean enabled` | Enable idle inhibitor for this session |
+| `Disable` | `boolean enabled` | Disable idle inhibitor for this session |
+| `Toggle` | `boolean enabled` | Toggle idle inhibitor state for this session |
+
+Missing daemon is an error: the CLI and tray call these methods on `com.logind.IdleControl` and do not report success unless the daemon applied the change.
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Enabled` | `boolean` | Whether this daemon currently holds the logind idle inhibitor |
 
 ### State Signals (Emitted by daemon)
 
@@ -246,11 +254,11 @@ flowchart TD
     TRAY["Tray icon — ksni StatusNotifierItem (requires a StatusNotifierWatcher host, e.g. sni-watcher or the bar's own)"]
 
     BIND --> CLI
-    CLI -->|"Enable / Disable / Toggle signals on com.logind.IdleControl at /com/logind/IdleControl/session_N"| CTRL
-    TRAY -->|"click: Toggle signal on the same object path"| CTRL
+    CLI -->|"Enable / Disable / Toggle methods on com.logind.IdleControl at /com/logind/IdleControl/session_N"| CTRL
+    TRAY -->|"click: Toggle method on the same object path"| CTRL
 
     subgraph DAEMON ["Per-session daemon"]
-        CTRL["control signal handler"]
+        CTRL["control method handler"]
         LOCK["InhibitorLock — RAII holder of the logind fd (Drop = close fd = release)"]
         STATE["state file: $XDG_RUNTIME_DIR/logind-idle-control-session-N.state"]
         CTRL --> LOCK

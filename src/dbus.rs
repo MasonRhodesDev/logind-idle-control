@@ -1,7 +1,11 @@
 use crate::session::SessionInfo;
-use anyhow::{Context, Result};
+use crate::State;
+use anyhow::{bail, Context, Result};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{OwnedFd, OwnedObjectPath};
-use zbus::{proxy, Connection};
+use zbus::{interface, proxy, Connection};
 
 #[proxy(
     interface = "org.freedesktop.login1.Manager",
@@ -48,6 +52,212 @@ impl Drop for InhibitorLock {
     fn drop(&mut self) {
         tracing::info!("Released idle inhibitor lock");
     }
+}
+
+#[proxy(
+    interface = "com.logind.IdleControl",
+    default_service = "com.logind.IdleControl",
+    default_path = "/com/logind/IdleControl"
+)]
+trait IdleControl {
+    fn enable(&self) -> zbus::Result<bool>;
+    fn disable(&self) -> zbus::Result<bool>;
+    fn toggle(&self) -> zbus::Result<bool>;
+
+    #[zbus(property)]
+    fn enabled(&self) -> zbus::Result<bool>;
+}
+
+struct ControlService {
+    state: Arc<Mutex<State>>,
+    inhibitor: Arc<Mutex<Option<InhibitorLock>>>,
+    session: SessionInfo,
+}
+
+#[interface(name = "com.logind.IdleControl")]
+impl ControlService {
+    async fn enable(&self) -> zbus::fdo::Result<bool> {
+        self.dispatch("Enable").await
+    }
+
+    async fn disable(&self) -> zbus::fdo::Result<bool> {
+        self.dispatch("Disable").await
+    }
+
+    async fn toggle(&self) -> zbus::fdo::Result<bool> {
+        self.dispatch("Toggle").await
+    }
+
+    #[zbus(property)]
+    async fn enabled(&self) -> bool {
+        self.inhibitor.lock().await.is_some()
+    }
+
+    #[zbus(signal)]
+    async fn state_changed(signal_emitter: &SignalEmitter<'_>, enabled: bool) -> zbus::Result<()>;
+}
+
+impl ControlService {
+    async fn dispatch(&self, signal_name: &str) -> zbus::fdo::Result<bool> {
+        handle_signal(
+            signal_name,
+            Arc::clone(&self.state),
+            Arc::clone(&self.inhibitor),
+            Arc::new(self.session.clone()),
+        )
+        .await
+        .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))
+    }
+}
+
+pub async fn serve_control(
+    session: &SessionInfo,
+    state: Arc<Mutex<State>>,
+    inhibitor: Arc<Mutex<Option<InhibitorLock>>>,
+) -> Result<Connection> {
+    let object_path = get_object_path_for_session(session);
+    let iface = ControlService {
+        state,
+        inhibitor,
+        session: session.clone(),
+    };
+
+    zbus::connection::Builder::session()?
+        .name("com.logind.IdleControl")?
+        .serve_at(object_path.as_str(), iface)?
+        .build()
+        .await
+        .context("Failed to request D-Bus name com.logind.IdleControl")
+}
+
+pub async fn name_is_owned(connection: &Connection) -> Result<bool> {
+    let proxy = zbus::fdo::DBusProxy::new(connection).await?;
+    let name = zbus::names::BusName::try_from("com.logind.IdleControl")
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    proxy
+        .name_has_owner(name)
+        .await
+        .context("Failed to query D-Bus name ownership")
+}
+
+async fn ensure_name_owner(connection: &Connection) -> Result<()> {
+    if !name_is_owned(connection).await? {
+        bail!("Idle control daemon is not running");
+    }
+    Ok(())
+}
+
+pub async fn enable() -> Result<bool> {
+    request("Enable").await
+}
+
+pub async fn disable() -> Result<bool> {
+    request("Disable").await
+}
+
+pub async fn toggle() -> Result<bool> {
+    request("Toggle").await
+}
+
+pub async fn query_enabled() -> Result<bool> {
+    request("Status").await
+}
+
+async fn request(command: &str) -> Result<bool> {
+    let session = crate::session::get_current_session().await?;
+    let object_path = get_object_path_for_session(&session);
+    let connection = Connection::session()
+        .await
+        .context("Failed to connect to session D-Bus")?;
+
+    ensure_name_owner(&connection).await?;
+
+    let proxy = IdleControlProxy::builder(&connection)
+        .path(object_path.as_str())?
+        .build()
+        .await
+        .context("Idle control daemon is not running")?;
+
+    match command {
+        "Enable" => proxy
+            .enable()
+            .await
+            .context("Failed to enable idle inhibitor"),
+        "Disable" => proxy
+            .disable()
+            .await
+            .context("Failed to disable idle inhibitor"),
+        "Toggle" => proxy
+            .toggle()
+            .await
+            .context("Failed to toggle idle inhibitor"),
+        "Status" => proxy
+            .enabled()
+            .await
+            .context("Failed to query idle inhibitor status"),
+        _ => bail!("Unknown control command"),
+    }
+}
+
+pub async fn handle_signal(
+    signal_name: &str,
+    state: Arc<Mutex<State>>,
+    inhibitor: Arc<Mutex<Option<InhibitorLock>>>,
+    session: Arc<SessionInfo>,
+) -> Result<bool> {
+    tracing::info!("Received D-Bus signal: {}", signal_name);
+
+    let mut current_state = state.lock().await;
+
+    let new_state = match signal_name {
+        "Enable" => State::Enabled,
+        "Disable" => State::Disabled,
+        "Toggle" => current_state.toggle(),
+        _ => {
+            drop(current_state);
+            return Ok(inhibitor.lock().await.is_some());
+        }
+    };
+
+    let mut lock_guard = inhibitor.lock().await;
+    if new_state.is_enabled() {
+        if lock_guard.is_none() {
+            match InhibitorLock::acquire().await {
+                Ok(lock) => {
+                    *lock_guard = Some(lock);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to acquire inhibitor lock: {}", e);
+                    *current_state = State::Disabled;
+                    current_state.save()?;
+                    drop(lock_guard);
+                    drop(current_state);
+                    if let Err(emit_err) = emit_state_changed(&session, false).await {
+                        tracing::error!("Failed to emit StateChanged signal: {}", emit_err);
+                    }
+                    return Err(e).context("Failed to acquire inhibitor lock");
+                }
+            }
+        }
+        *current_state = State::Enabled;
+        current_state.save()?;
+    } else {
+        *lock_guard = None;
+        *current_state = State::Disabled;
+        current_state.save()?;
+    }
+
+    let enabled = lock_guard.is_some();
+    drop(lock_guard);
+    drop(current_state);
+
+    if let Err(e) = emit_state_changed(&session, enabled).await {
+        tracing::error!("Failed to emit StateChanged signal: {}", e);
+    }
+
+    tracing::info!("State changed to: {}", if enabled { "1" } else { "0" });
+
+    Ok(enabled)
 }
 
 fn get_object_path_for_session(session: &SessionInfo) -> String {
@@ -156,8 +366,12 @@ pub async fn monitor_state_changes() -> Result<()> {
 
     let session = crate::session::get_current_session().await?;
 
-    let state = crate::State::load()?;
-    println!("{}", state);
+    let enabled = query_enabled().await?;
+    if enabled {
+        println!("1");
+    } else {
+        println!("0");
+    }
     std::io::stdout().flush()?;
 
     let (tx_state, mut rx_state) = tokio::sync::mpsc::channel::<bool>(10);
@@ -199,8 +413,12 @@ pub async fn monitor_state_changes() -> Result<()> {
                 std::io::stdout().flush()?;
             }
             Some(()) = rx_event.recv() => {
-                let state = crate::State::load()?;
-                println!("{}", state);
+                let enabled = query_enabled().await?;
+                if enabled {
+                    println!("1");
+                } else {
+                    println!("0");
+                }
                 std::io::stdout().flush()?;
             }
             else => break,
