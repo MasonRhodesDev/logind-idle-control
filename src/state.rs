@@ -50,9 +50,9 @@ impl State {
     }
 
     pub fn state_path() -> Result<PathBuf> {
-        let runtime_dir =
-            std::env::var("XDG_RUNTIME_DIR").context("XDG_RUNTIME_DIR is required")?;
-        let runtime_dir = PathBuf::from(runtime_dir)
+        let dirs = hypr_paths::BaseDirs::from_env().context("XDG_RUNTIME_DIR is required")?;
+        let runtime_dir = dirs
+            .runtime_dir()
             .canonicalize()
             .context("XDG_RUNTIME_DIR could not be resolved")?;
 
