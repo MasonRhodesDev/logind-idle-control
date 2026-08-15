@@ -34,6 +34,20 @@ logind-idle-control-tray.service`.
 # -a1 unpacks the vendor tarball (vendor/ at its root) into the source dir.
 %autosetup -p1 -a1
 %cargo_prep -v vendor
+# %%cargo_prep only redirects crates.io. Git pins are vendored in Source1
+# too; map them so the RPM build stays offline.
+cat >> .cargo/config.toml << 'EOF'
+
+[source."git+https://github.com/MasonRhodesDev/hypr-paths?rev=535cec729936310b480c99203c05b5900d2a7e71"]
+git = "https://github.com/MasonRhodesDev/hypr-paths"
+rev = "535cec729936310b480c99203c05b5900d2a7e71"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/MasonRhodesDev/hypr-logind?rev=8c331f285724e671beb71595d1dc8e07a5fcde73"]
+git = "https://github.com/MasonRhodesDev/hypr-logind"
+rev = "8c331f285724e671beb71595d1dc8e07a5fcde73"
+replace-with = "vendored-sources"
+EOF
 
 %build
 %cargo_build -f tray
