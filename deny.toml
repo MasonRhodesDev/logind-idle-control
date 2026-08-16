@@ -40,8 +40,5 @@ allow-wildcard-paths = true
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-allow-git = [
-    "https://github.com/MasonRhodesDev/hypr-paths",
-    "https://github.com/MasonRhodesDev/hypr-logind",
-]
+allow-git = []
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]

@@ -7,7 +7,7 @@
 %bcond_without check
 
 Name:           logind-idle-control
-Version:        0.2.1
+Version:        0.2.2
 Release:        1%{?dist}
 Summary:        Per-session idle inhibitor control for systemd-logind
 License:        MIT
@@ -34,20 +34,6 @@ logind-idle-control-tray.service`.
 # -a1 unpacks the vendor tarball (vendor/ at its root) into the source dir.
 %autosetup -p1 -a1
 %cargo_prep -v vendor
-# %%cargo_prep only redirects crates.io. Git pins are vendored in Source1
-# too; map them so the RPM build stays offline.
-cat >> .cargo/config.toml << 'EOF'
-
-[source."git+https://github.com/MasonRhodesDev/hypr-paths?rev=535cec729936310b480c99203c05b5900d2a7e71"]
-git = "https://github.com/MasonRhodesDev/hypr-paths"
-rev = "535cec729936310b480c99203c05b5900d2a7e71"
-replace-with = "vendored-sources"
-
-[source."git+https://github.com/MasonRhodesDev/hypr-logind?rev=8c331f285724e671beb71595d1dc8e07a5fcde73"]
-git = "https://github.com/MasonRhodesDev/hypr-logind"
-rev = "8c331f285724e671beb71595d1dc8e07a5fcde73"
-replace-with = "vendored-sources"
-EOF
 
 %build
 %cargo_build -f tray
@@ -92,6 +78,9 @@ install -Dpm0644 icons/caffeine-cup-empty-symbolic.svg %{buildroot}%{_datadir}/i
 %{_datadir}/icons/hicolor/scalable/status/caffeine-cup-empty-symbolic.svg
 
 %changelog
+* Sun Aug 16 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.2.2-1
+- Pin hypr-paths and hypr-logind to crates.io 0.1.0.
+
 * Tue Jul 14 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.2.1-1
 - Drop unpackaged cargo-registry files installed by F44 rust macros
 

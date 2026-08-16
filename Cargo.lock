@@ -479,7 +479,8 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 [[package]]
 name = "hypr-logind"
 version = "0.1.0"
-source = "git+https://github.com/MasonRhodesDev/hypr-logind?rev=8c331f285724e671beb71595d1dc8e07a5fcde73#8c331f285724e671beb71595d1dc8e07a5fcde73"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6f626bf6e676211c779ad16bb35f8cbfef246101c2d4b261e698208c0081270"
 dependencies = [
  "libc",
  "zbus",
@@ -488,7 +489,8 @@ dependencies = [
 [[package]]
 name = "hypr-paths"
 version = "0.1.0"
-source = "git+https://github.com/MasonRhodesDev/hypr-paths?rev=535cec729936310b480c99203c05b5900d2a7e71#535cec729936310b480c99203c05b5900d2a7e71"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2b57d35d5a9d1fe4892d499fca8fb64f331cf0a2618ca38b1fc32fdfef9f6ed"
 
 [[package]]
 name = "indexmap"
@@ -570,7 +572,7 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "logind-idle-control"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "clap",
