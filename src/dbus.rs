@@ -7,7 +7,7 @@ use zbus::object_server::SignalEmitter;
 use zbus::{interface, proxy, Connection};
 
 pub struct InhibitorLock {
-    _inhibit: hypr_logind::Inhibitor,
+    _inhibit: logind_session::Inhibitor,
 }
 
 impl InhibitorLock {
@@ -16,11 +16,11 @@ impl InhibitorLock {
             .await
             .context("Failed to connect to system D-Bus")?;
 
-        let proxy = hypr_logind::LogindManagerProxy::new(&connection)
+        let proxy = logind_session::LogindManagerProxy::new(&connection)
             .await
             .context("Failed to create logind proxy")?;
 
-        let inhibit = hypr_logind::Inhibitor::acquire(
+        let inhibit = logind_session::Inhibitor::acquire(
             &proxy,
             "idle",
             "logind-idle-control",

@@ -50,13 +50,13 @@ impl State {
     }
 
     pub fn state_path() -> Result<PathBuf> {
-        let dirs = hypr_paths::BaseDirs::from_env().context("XDG_RUNTIME_DIR is required")?;
+        let dirs = xdg_paths::BaseDirs::from_env().context("XDG_RUNTIME_DIR is required")?;
         let runtime_dir = dirs
             .runtime_dir()
             .canonicalize()
             .context("XDG_RUNTIME_DIR could not be resolved")?;
 
-        if let Ok(session_id) = hypr_logind::session_id_from_env() {
+        if let Ok(session_id) = logind_session::session_id_from_env() {
             Ok(runtime_dir.join(format!("logind-idle-control-session-{}.state", session_id)))
         } else {
             Ok(runtime_dir.join("logind-idle-control.state"))

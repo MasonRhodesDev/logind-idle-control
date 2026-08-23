@@ -477,22 +477,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
-name = "hypr-logind"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6f626bf6e676211c779ad16bb35f8cbfef246101c2d4b261e698208c0081270"
-dependencies = [
- "libc",
- "zbus",
-]
-
-[[package]]
-name = "hypr-paths"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2b57d35d5a9d1fe4892d499fca8fb64f331cf0a2618ca38b1fc32fdfef9f6ed"
-
-[[package]]
 name = "indexmap"
 version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -572,14 +556,13 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "logind-idle-control"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "clap",
  "futures-util",
- "hypr-logind",
- "hypr-paths",
  "ksni",
+ "logind-session",
  "nix",
  "serde",
  "serde_json",
@@ -588,6 +571,17 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+ "xdg-paths",
+ "zbus",
+]
+
+[[package]]
+name = "logind-session"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "596931f7f4c3aed91073dc63c04780d22b2709f575f30ecfe414874963858bbf"
+dependencies = [
+ "libc",
  "zbus",
 ]
 
@@ -1452,6 +1446,12 @@ name = "wit-bindgen"
 version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
+
+[[package]]
+name = "xdg-paths"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86bfd0671d6ceb9f3d5049ceaa7ec29b00d36cf26aceae18e4c9f553d7da780a"
 
 [[package]]
 name = "zbus"

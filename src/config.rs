@@ -62,7 +62,7 @@ impl Config {
     }
 
     pub fn config_path() -> PathBuf {
-        match hypr_paths::ConfigDirs::from_env() {
+        match xdg_paths::ConfigDirs::from_env() {
             Ok(dirs) => dirs.config_dir("logind-idle-control").join("config.toml"),
             Err(_) => PathBuf::new(),
         }

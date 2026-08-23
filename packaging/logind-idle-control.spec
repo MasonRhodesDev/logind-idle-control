@@ -7,7 +7,7 @@
 %bcond_without check
 
 Name:           logind-idle-control
-Version:        0.2.2
+Version:        0.2.3
 Release:        1%{?dist}
 Summary:        Per-session idle inhibitor control for systemd-logind
 License:        MIT
@@ -78,6 +78,9 @@ install -Dpm0644 icons/caffeine-cup-empty-symbolic.svg %{buildroot}%{_datadir}/i
 %{_datadir}/icons/hicolor/scalable/status/caffeine-cup-empty-symbolic.svg
 
 %changelog
+* Sat Aug 22 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.2.3-1
+- Depend on xdg-paths and logind-session 0.2.0 (renamed crates, desktop-commons ADR 0005).
+
 * Sun Aug 16 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.2.2-1
 - Pin hypr-paths and hypr-logind to crates.io 0.1.0.
 

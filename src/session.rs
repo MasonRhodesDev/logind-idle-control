@@ -13,7 +13,7 @@ pub async fn get_current_session() -> Result<SessionInfo> {
         .await
         .context("Failed to connect to system D-Bus")?;
 
-    let session = hypr_logind::resolve_graphical_session(&connection)
+    let session = logind_session::resolve_graphical_session(&connection)
         .await
         .context("Failed to resolve graphical logind session")?;
 
