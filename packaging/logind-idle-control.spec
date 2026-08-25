@@ -7,7 +7,7 @@
 %bcond_without check
 
 Name:           logind-idle-control
-Version:        0.2.3
+Version:        0.2.4
 Release:        1%{?dist}
 Summary:        Per-session idle inhibitor control for systemd-logind
 License:        MIT
@@ -78,6 +78,11 @@ install -Dpm0644 icons/caffeine-cup-empty-symbolic.svg %{buildroot}%{_datadir}/i
 %{_datadir}/icons/hicolor/scalable/status/caffeine-cup-empty-symbolic.svg
 
 %changelog
+* Tue Aug 25 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.2.4-1
+- Hold an org.freedesktop.ScreenSaver inhibit alongside the logind one, so
+  idle daemons that count only those (hypridle) honour the toggle. Without
+  it the session idle-locked and blanked with the inhibitor enabled.
+
 * Sat Aug 22 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.2.3-1
 - Depend on xdg-paths and logind-session 0.2.0 (renamed crates, desktop-commons ADR 0005).
 
