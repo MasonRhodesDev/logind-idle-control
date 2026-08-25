@@ -6,8 +6,70 @@ use tokio::sync::Mutex;
 use zbus::object_server::SignalEmitter;
 use zbus::{interface, proxy, Connection};
 
+/// An `org.freedesktop.ScreenSaver` inhibit, held on its own connection.
+///
+/// The logind inhibitor alone is invisible to hypridle: it counts only the
+/// inhibits taken through the ScreenSaver interface it serves
+/// (`m_iInhibitLocks` is touched solely by its `onInhibit`), and consults
+/// login1 only to resolve the session. Without this the toggle does not
+/// stop the idle lock, which is the whole point of holding it.
+///
+/// The connection is private to the inhibit so that dropping it releases
+/// the count even if `release` is never reached: hypridle watches
+/// NameOwnerChanged and drops an owner's cookies when its name goes away.
+pub struct ScreenSaverInhibit {
+    connection: Connection,
+    cookie: u32,
+}
+
+impl ScreenSaverInhibit {
+    pub async fn acquire() -> Result<Self> {
+        let connection = Connection::session()
+            .await
+            .context("Failed to connect to session D-Bus")?;
+        let proxy = ScreenSaverProxy::new(&connection)
+            .await
+            .context("Failed to create ScreenSaver proxy")?;
+        let cookie = proxy
+            .inhibit("logind-idle-control", "User requested idle inhibition")
+            .await
+            .context("Failed to inhibit via org.freedesktop.ScreenSaver")?;
+        tracing::info!("Acquired ScreenSaver inhibit (cookie {cookie})");
+        Ok(Self { connection, cookie })
+    }
+
+    /// Hand the cookie back. Dropping without this still releases the
+    /// count when the connection closes, but only once the bus notices.
+    pub async fn release(self) {
+        match ScreenSaverProxy::new(&self.connection).await {
+            Ok(proxy) => {
+                if let Err(e) = proxy.un_inhibit(self.cookie).await {
+                    tracing::warn!("Failed to release ScreenSaver inhibit: {e}");
+                } else {
+                    tracing::info!("Released ScreenSaver inhibit (cookie {})", self.cookie);
+                }
+            }
+            Err(e) => tracing::warn!("Failed to create ScreenSaver proxy for release: {e}"),
+        }
+    }
+}
+
+#[proxy(
+    interface = "org.freedesktop.ScreenSaver",
+    default_service = "org.freedesktop.ScreenSaver",
+    default_path = "/org/freedesktop/ScreenSaver"
+)]
+trait ScreenSaver {
+    fn inhibit(&self, application_name: &str, reason_for_inhibit: &str) -> zbus::Result<u32>;
+    fn un_inhibit(&self, cookie: u32) -> zbus::Result<()>;
+}
+
 pub struct InhibitorLock {
     _inhibit: logind_session::Inhibitor,
+    /// Best effort: without hypridle (or any ScreenSaver implementation)
+    /// on the bus there is nothing to inform, and the logind inhibitor --
+    /// which hyprstate and systemd do honour -- still stands.
+    screensaver: Option<ScreenSaverInhibit>,
 }
 
 impl InhibitorLock {
@@ -32,7 +94,32 @@ impl InhibitorLock {
 
         tracing::info!("Acquired idle inhibitor lock");
 
-        Ok(Self { _inhibit: inhibit })
+        let screensaver = match ScreenSaverInhibit::acquire().await {
+            Ok(inhibit) => Some(inhibit),
+            Err(e) => {
+                tracing::warn!(
+                    "No ScreenSaver inhibit ({e:#}); idle daemons that only \
+                     count those will not see this inhibitor"
+                );
+                None
+            }
+        };
+
+        Ok(Self {
+            _inhibit: inhibit,
+            screensaver,
+        })
+    }
+}
+
+impl InhibitorLock {
+    /// Release both halves. The daemon drops the lock rather than calling
+    /// this in some paths; the ScreenSaver count still goes away then,
+    /// because its connection closes with it.
+    pub async fn release(mut self) {
+        if let Some(screensaver) = self.screensaver.take() {
+            screensaver.release().await;
+        }
     }
 }
 
@@ -230,7 +317,12 @@ pub async fn handle_signal(
         *current_state = State::Enabled;
         current_state.save()?;
     } else {
-        *lock_guard = None;
+        // Hand the ScreenSaver cookie back rather than waiting for the bus
+        // to notice the connection close: a consumer that still counts it
+        // keeps suppressing the idle timers the user just re-enabled.
+        if let Some(lock) = lock_guard.take() {
+            lock.release().await;
+        }
         *current_state = State::Disabled;
         current_state.save()?;
     }
