@@ -39,30 +39,52 @@ impl StubScreenSaver {
     }
 }
 
-/// CI runs `cargo test` with no session bus, so provide one rather than
-/// skipping: a test that silently does not run is worse than no test.
-fn ensure_session_bus() -> bool {
-    if std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some() {
-        return true;
-    }
-    let out = match std::process::Command::new("dbus-daemon")
-        .args(["--session", "--print-address", "--fork"])
-        .output()
-    {
-        Ok(out) if out.status.success() => out,
-        _ => {
-            eprintln!("no session bus and no dbus-daemon to start one; skipping");
-            return false;
+/// A private session bus for the duration of the test, killed on drop.
+///
+/// Never reuse an inherited `DBUS_SESSION_BUS_ADDRESS`: on the desktop this
+/// daemon exists for, hypridle already owns `org.freedesktop.ScreenSaver`
+/// on the real bus, so the stub below cannot claim the name and the test
+/// fails with NameTaken. Trusting the ambient bus made `cargo test` fail on
+/// exactly the target platform. A private bus also keeps the test from
+/// poking the developer's live session.
+struct PrivateBus {
+    pid: i32,
+}
+
+impl PrivateBus {
+    /// `None` means no `dbus-daemon` to run one; the caller skips rather
+    /// than failing, since not every build environment ships dbus.
+    fn start() -> Option<Self> {
+        let out = std::process::Command::new("dbus-daemon")
+            .args(["--session", "--print-address", "--print-pid", "--fork"])
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
         }
-    };
-    let address = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    if address.is_empty() {
-        eprintln!("dbus-daemon printed no address; skipping");
-        return false;
+        let text = String::from_utf8_lossy(&out.stdout);
+        let mut lines = text.lines();
+        let address = lines.next()?.trim().to_string();
+        let pid: i32 = lines.next()?.trim().parse().ok()?;
+        if address.is_empty() {
+            return None;
+        }
+        // SAFETY: called once, before any other thread exists in this test
+        // binary. A second test in this file would race here -- see the
+        // one-test-one-bus-name note below, which already forbids adding one.
+        unsafe { std::env::set_var("DBUS_SESSION_BUS_ADDRESS", &address) };
+        Some(Self { pid })
     }
-    // SAFETY: single-threaded at this point in the test binary.
-    unsafe { std::env::set_var("DBUS_SESSION_BUS_ADDRESS", address) };
-    true
+}
+
+impl Drop for PrivateBus {
+    fn drop(&mut self) {
+        // Otherwise every run leaves a daemon behind, which accumulates on
+        // a persistent CI runner and in a local edit-test loop.
+        let _ = std::process::Command::new("kill")
+            .arg(self.pid.to_string())
+            .status();
+    }
 }
 
 async fn stub_bus() -> (zbus::Connection, Arc<Mutex<Calls>>) {
@@ -89,9 +111,10 @@ async fn stub_bus() -> (zbus::Connection, Arc<Mutex<Calls>>) {
 // calls would land on the other's stub.
 #[tokio::test]
 async fn the_inhibit_is_visible_to_a_screensaver_consumer_and_is_handed_back() {
-    if !ensure_session_bus() {
+    let Some(_bus) = PrivateBus::start() else {
+        eprintln!("no dbus-daemon to provide a private session bus; skipping");
         return;
-    }
+    };
     let (_conn, calls) = stub_bus().await;
 
     let lock = ScreenSaverInhibit::acquire()

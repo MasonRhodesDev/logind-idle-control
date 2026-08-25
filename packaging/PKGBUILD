@@ -16,6 +16,7 @@ license=('MIT')
 install="$pkgname.install"
 depends=('systemd' 'dbus' 'hicolor-icon-theme')
 makedepends=('cargo')
+checkdepends=('dbus')
 optdepends=(
   'waybar: SNI tray host for logind-idle-control-tray'
 )
@@ -38,7 +39,8 @@ build() {
 check() {
   cd "$pkgname-$pkgver"
   export RUSTUP_TOOLCHAIN=stable
-  cargo test --frozen --release --features tray
+  # dbus-run-session: the ScreenSaver test needs a session bus of its own.
+  dbus-run-session -- cargo test --frozen --release --features tray
 }
 
 package() {

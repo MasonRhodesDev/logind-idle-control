@@ -17,6 +17,10 @@ Source1:        %{name}-%{version}-vendor.tar.xz
 
 BuildRequires:  cargo-rpm-macros >= 24
 BuildRequires:  systemd-rpm-macros
+# The suite includes a D-Bus integration test. Without a dbus-daemon it
+# would skip itself silently, so declare it rather than depend on whatever
+# the buildroot happens to carry.
+BuildRequires:  dbus-daemon
 Requires:       systemd
 Requires:       hicolor-icon-theme
 %{?systemd_requires}
@@ -52,7 +56,9 @@ install -Dpm0644 icons/caffeine-cup-empty-symbolic.svg %{buildroot}%{_datadir}/i
 
 %if %{with check}
 %check
-%cargo_test -f tray
+# dbus-run-session: the ScreenSaver test needs a session bus, and must not
+# be handed the builder's (if any) -- it claims a well-known name.
+dbus-run-session -- %{shrink:%{cargo_test -f tray}}
 %endif
 
 %post
