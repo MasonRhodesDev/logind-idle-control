@@ -1,6 +1,6 @@
 [package]
 name = "logind-idle-control"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 authors = ["Mason Rhodes <mason@masonrhodes.dev>"]
 license = "MIT"
@@ -37,3 +37,6 @@ ksni = { version = "0.3", optional = true }
 [features]
 default = []
 tray = ["ksni"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "test-util"] }

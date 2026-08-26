@@ -7,7 +7,7 @@
 # to the PKGBUILD, so PR builds never download.
 
 pkgname=logind-idle-control
-pkgver=0.2.3
+pkgver=0.2.4
 pkgrel=1
 pkgdesc="Systemd-logind idle inhibitor control with per-session D-Bus interface and SNI tray"
 arch=('x86_64')
@@ -16,6 +16,7 @@ license=('MIT')
 install="$pkgname.install"
 depends=('systemd' 'dbus' 'hicolor-icon-theme')
 makedepends=('cargo')
+checkdepends=('dbus')
 optdepends=(
   'waybar: SNI tray host for logind-idle-control-tray'
 )
@@ -38,7 +39,8 @@ build() {
 check() {
   cd "$pkgname-$pkgver"
   export RUSTUP_TOOLCHAIN=stable
-  cargo test --frozen --release --features tray
+  # dbus-run-session: the ScreenSaver test needs a session bus of its own.
+  dbus-run-session -- cargo test --frozen --release --features tray
 }
 
 package() {
