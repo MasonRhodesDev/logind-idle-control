@@ -8,7 +8,7 @@
 
 pkgname=logind-idle-control
 pkgver=0.2.4
-pkgrel=1
+pkgrel=2
 pkgdesc="Systemd-logind idle inhibitor control with per-session D-Bus interface and SNI tray"
 arch=('x86_64' 'aarch64')
 url="https://github.com/MasonRhodesDev/logind-idle-control"
