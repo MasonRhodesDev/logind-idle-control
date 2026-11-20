@@ -7,7 +7,17 @@ version = 2
 yanked = "deny"
 # Add RUSTSEC IDs here (with a justifying comment) only if an advisory is
 # confirmed not to affect us and a fix isn't yet available.
-ignore = []
+ignore = [
+    # zvariant, zbus_names and zvariant_derive are unmaintained (folded into
+    # zbus 6). They reach the tree only through the optional `tray` feature:
+    # ksni 0.3.7, its newest release, still requires zbus 5. The default
+    # build is on zbus 6 and carries none of them. Unmaintained, not a known
+    # vulnerability. Drop these three once ksni moves to zbus 6.
+    # Reviewed 2026-11-20.
+    { id = "RUSTSEC-2026-0370", reason = "tray feature only, via ksni's zbus 5" },
+    { id = "RUSTSEC-2026-0371", reason = "tray feature only, via ksni's zbus 5" },
+    { id = "RUSTSEC-2026-0372", reason = "tray feature only, via ksni's zbus 5" },
+]
 
 [licenses]
 version = 2
