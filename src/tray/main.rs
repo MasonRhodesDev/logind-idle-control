@@ -167,10 +167,10 @@ async fn listen_state_changes(
 
     let match_rule = MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
-        .path(object_path.clone())?
-        .interface("com.logind.IdleControl")?
-        .member("StateChanged")?
-        .build();
+        .path(object_path.clone())
+        .interface("com.logind.IdleControl")
+        .member("StateChanged")
+        .build()?;
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
     proxy.add_match_rule(match_rule).await?;
@@ -217,9 +217,9 @@ async fn listen_theme_changes(
     // Watch for dconf changes on org.gnome.desktop.interface (covers icon-theme, color-scheme)
     let match_rule = MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
-        .interface("ca.desrt.dconf.Writer")?
-        .member("Notify")?
-        .build();
+        .interface("ca.desrt.dconf.Writer")
+        .member("Notify")
+        .build()?;
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
     proxy.add_match_rule(match_rule).await?;
