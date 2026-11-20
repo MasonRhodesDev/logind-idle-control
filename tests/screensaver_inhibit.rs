@@ -90,16 +90,13 @@ impl Drop for PrivateBus {
 async fn stub_bus() -> (zbus::Connection, Arc<Mutex<Calls>>) {
     let calls = Arc::new(Mutex::new(Calls::default()));
     let conn = connection::Builder::session()
-        .expect("session bus")
         .name("org.freedesktop.ScreenSaver")
-        .expect("claim name")
         .serve_at(
             "/org/freedesktop/ScreenSaver",
             StubScreenSaver {
                 calls: Arc::clone(&calls),
             },
         )
-        .expect("serve")
         .build()
         .await
         .expect("stub bus");

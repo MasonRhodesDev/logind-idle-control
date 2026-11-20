@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use zbus::zvariant::OwnedObjectPath;
 use zbus::Connection;
+use zbus::OwnedObjectPath;
 
 #[derive(Debug, Clone)]
 pub struct SessionInfo {

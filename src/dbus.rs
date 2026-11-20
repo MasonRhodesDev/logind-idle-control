@@ -197,9 +197,9 @@ pub async fn serve_control(
         session: session.clone(),
     };
 
-    zbus::connection::Builder::session()?
-        .name("com.logind.IdleControl")?
-        .serve_at(object_path.as_str(), iface)?
+    zbus::connection::Builder::session()
+        .name("com.logind.IdleControl")
+        .serve_at(object_path.as_str(), iface)
         .build()
         .await
         .context("Failed to request D-Bus name com.logind.IdleControl")
@@ -248,7 +248,7 @@ async fn request(command: &str) -> Result<bool> {
     ensure_name_owner(&connection).await?;
 
     let proxy = IdleControlProxy::builder(&connection)
-        .path(object_path.as_str())?
+        .path(object_path.as_str())
         .build()
         .await
         .context("Idle control daemon is not running")?;
@@ -407,10 +407,10 @@ where
 
     let match_rule = MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
-        .path(session_path.clone())?
-        .interface("org.freedesktop.login1.Session")?
-        .member("Unlock")?
-        .build();
+        .path(session_path.clone())
+        .interface("org.freedesktop.login1.Session")
+        .member("Unlock")
+        .build()?;
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
     proxy.add_match_rule(match_rule).await?;
@@ -522,10 +522,10 @@ async fn monitor_state_changed_signals(
 
     let match_rule = MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
-        .path(object_path)?
-        .interface("com.logind.IdleControl")?
-        .member("StateChanged")?
-        .build();
+        .path(object_path)
+        .interface("com.logind.IdleControl")
+        .member("StateChanged")
+        .build()?;
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
     proxy.add_match_rule(match_rule).await?;
@@ -570,10 +570,10 @@ async fn monitor_lock_signal(
 
     let match_rule = MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
-        .path(session_path.clone())?
-        .interface("org.freedesktop.login1.Session")?
-        .member("Lock")?
-        .build();
+        .path(session_path.clone())
+        .interface("org.freedesktop.login1.Session")
+        .member("Lock")
+        .build()?;
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
     proxy.add_match_rule(match_rule).await?;
@@ -612,10 +612,10 @@ async fn monitor_unlock_signal(
 
     let match_rule = MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
-        .path(session_path.clone())?
-        .interface("org.freedesktop.login1.Session")?
-        .member("Unlock")?
-        .build();
+        .path(session_path.clone())
+        .interface("org.freedesktop.login1.Session")
+        .member("Unlock")
+        .build()?;
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
     proxy.add_match_rule(match_rule).await?;
@@ -654,9 +654,9 @@ where
 
     let match_rule = MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
-        .path(object_path.clone())?
-        .interface("com.logind.IdleControl")?
-        .build();
+        .path(object_path.clone())
+        .interface("com.logind.IdleControl")
+        .build()?;
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
     proxy.add_match_rule(match_rule).await?;
@@ -709,10 +709,10 @@ where
 
     let match_rule = MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
-        .path(session_path.clone())?
-        .interface("org.freedesktop.login1.Session")?
-        .member("Lock")?
-        .build();
+        .path(session_path.clone())
+        .interface("org.freedesktop.login1.Session")
+        .member("Lock")
+        .build()?;
 
     let proxy = zbus::fdo::DBusProxy::new(&connection).await?;
     proxy.add_match_rule(match_rule).await?;

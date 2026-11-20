@@ -16,7 +16,7 @@ path = "src/tray/main.rs"
 required-features = ["tray"]
 
 [dependencies]
-zbus = "5"
+zbus = { version = "6", default-features = false, features = ["tokio", "proxy", "service", "tracing"] }
 tokio = { version = "1", features = ["full"] }
 futures-util = "0.3"
 anyhow = "1.0"
@@ -29,7 +29,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 nix = { version = "0.29", features = ["signal"] }
 xdg-paths = "0.2.0"
-logind-session = "0.2.0"
+logind-session = "0.3.0"
 
 # Tray dependencies (optional)
 ksni = { version = "0.3", optional = true }
